@@ -38,6 +38,12 @@ Editor-specific files refine this guidance and must not replace it.
 - Use the `reviewer` agent with findings-first output.
 - Prioritize correctness, regression risk, and missing tests.
 
+## Maintenance cadence
+
+- Run a monthly quick pass using `docs/maintenance-cadence.md`.
+- Use the quarterly pass to review architecture, external APIs, and AI/agent implementation patterns, not just dependencies.
+- Treat the maintenance pass as incomplete until there is a dated report in `docs/maintenance-reviews/`.
+
 ## Antigravity note
 
 Treat this file and `AGENTS.md` as canonical workflow references. Tool-specific files are adapters.
