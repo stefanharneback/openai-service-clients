@@ -32,11 +32,11 @@ All client surfaces should share one API contract and one core .NET client libra
 
 ## Current status
 
-- `web/` contains a working Vite + React + TypeScript starter app.
-- `dotnet/src/Core/` contains the shared .NET core project.
-- `dotnet/src/Web/` contains a scaffolded ASP.NET Core app.
-- `dotnet/src/Maui/` contains a MAUI project skeleton that requires local MAUI workloads.
-- `dotnet/tests/Core.Tests/` contains the shared .NET test project.
+- `web/` contains a working Vite + React + TypeScript app with `/health` and `/v1/llm` (non-stream + stream) support.
+- `dotnet/src/Core/` contains the shared .NET gateway client with JSON and SSE stream methods.
+- `dotnet/src/Web/` contains an ASP.NET Core app with `/api/health`, `/api/llm`, and `/api/llm/stream` routes plus a static UI.
+- `dotnet/src/Maui/` contains a MAUI app with health, non-stream LLM, and streaming LLM flows.
+- `dotnet/tests/Core.Tests/` contains shared client tests including streaming coverage.
 
 ## Validation commands
 

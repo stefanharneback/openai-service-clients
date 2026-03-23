@@ -1,5 +1,6 @@
 using OpenAiServiceClients.Core;
 using OpenAiServiceClients.Core.Models;
+using Microsoft.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,6 +47,49 @@ app.MapPost("/api/llm", async (GatewayClient gatewayClient, LlmPromptInput input
 			cancellationToken);
 
 		return Results.Text(payload.RootElement.GetRawText(), "application/json");
+	}
+	catch (GatewayApiException error)
+	{
+		return Results.Problem(
+			title: "Gateway request failed",
+			detail: error.ResponseBody,
+			statusCode: (int)error.StatusCode);
+	}
+});
+
+app.MapPost("/api/llm/stream", async (HttpContext context, GatewayClient gatewayClient, LlmPromptInput input, CancellationToken cancellationToken) =>
+{
+	if (string.IsNullOrWhiteSpace(input.ApiKey))
+	{
+		return Results.BadRequest(new { error = "apiKey is required." });
+	}
+
+	if (string.IsNullOrWhiteSpace(input.Model) || string.IsNullOrWhiteSpace(input.Input))
+	{
+		return Results.BadRequest(new { error = "model and input are required." });
+	}
+
+	try
+	{
+		using var response = await gatewayClient.PostLlmStreamAsync(
+			new LlmRequest
+			{
+				Model = input.Model,
+				Input = input.Input,
+				Stream = true,
+			},
+			input.ApiKey,
+			cancellationToken);
+
+		context.Response.StatusCode = StatusCodes.Status200OK;
+		context.Response.Headers[HeaderNames.CacheControl] = "no-cache";
+		context.Response.Headers["X-Accel-Buffering"] = "no";
+		context.Response.ContentType = "text/event-stream";
+
+		await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+		await stream.CopyToAsync(context.Response.Body, cancellationToken);
+		await context.Response.Body.FlushAsync(cancellationToken);
+		return Results.Empty;
 	}
 	catch (GatewayApiException error)
 	{

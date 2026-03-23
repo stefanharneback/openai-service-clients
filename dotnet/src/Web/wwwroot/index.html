@@ -22,7 +22,7 @@
       <button id="healthBtn">Check /api/health</button>
       <pre id="healthResult">No health result yet.</pre>
 
-      <h2>LLM (non-stream)</h2>
+      <h2>LLM</h2>
       <div class="row">
         <div>
           <label for="apiKey">Client API key</label>
@@ -38,14 +38,45 @@
       <textarea id="input" rows="5">Summarize the value of API gateways in three bullets.</textarea>
 
       <button id="llmBtn">Send /api/llm</button>
+      <button id="llmStreamBtn">Stream /api/llm/stream</button>
       <pre id="llmResult">No LLM result yet.</pre>
     </main>
 
     <script>
       const healthBtn = document.getElementById("healthBtn");
       const llmBtn = document.getElementById("llmBtn");
+      const llmStreamBtn = document.getElementById("llmStreamBtn");
       const healthResult = document.getElementById("healthResult");
       const llmResult = document.getElementById("llmResult");
+
+      const parseSseDataLine = (line) => {
+        if (!line.startsWith("data:")) {
+          return null;
+        }
+
+        return line.slice(5).trim();
+      };
+
+      const extractDisplayChunk = (data) => {
+        if (data === "[DONE]") {
+          return "\n\n[done]";
+        }
+
+        try {
+          const payload = JSON.parse(data);
+          if (typeof payload.delta === "string") {
+            return payload.delta;
+          }
+
+          if (payload.type === "response.completed") {
+            return "\n\n[completed]";
+          }
+
+          return "";
+        } catch {
+          return `${data}\n`;
+        }
+      };
 
       healthBtn.addEventListener("click", async () => {
         healthResult.textContent = "Loading...";
@@ -78,6 +109,62 @@
           llmResult.textContent = text;
         } catch (error) {
           llmResult.textContent = String(error);
+        }
+      });
+
+      llmStreamBtn.addEventListener("click", async () => {
+        llmResult.textContent = "Streaming output:\n\n";
+
+        const payload = {
+          apiKey: document.getElementById("apiKey").value,
+          model: document.getElementById("model").value,
+          input: document.getElementById("input").value,
+        };
+
+        try {
+          const response = await fetch("/api/llm/stream", {
+            method: "POST",
+            headers: { "content-type": "application/json", accept: "text/event-stream" },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || `Streaming request failed with status ${response.status}`);
+          }
+
+          if (!response.body) {
+            throw new Error("Streaming response body was empty.");
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) {
+              break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split(/\r?\n/);
+            buffer = lines.pop() ?? "";
+
+            for (const line of lines) {
+              const data = parseSseDataLine(line);
+              if (!data) {
+                continue;
+              }
+
+              const chunk = extractDisplayChunk(data);
+              if (chunk.length > 0) {
+                llmResult.textContent += chunk;
+              }
+            }
+          }
+        } catch (error) {
+          llmResult.textContent += `\n\n${String(error)}`;
         }
       });
     </script>

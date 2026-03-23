@@ -1,5 +1,6 @@
 using OpenAiServiceClients.Core;
 using OpenAiServiceClients.Core.Models;
+using System.Text.Json;
 
 namespace OpenAiServiceClients.Maui;
 
@@ -67,6 +68,103 @@ public partial class MainPage : ContentPage
         catch (Exception error)
         {
             ResultEditor.Text = error.Message;
+        }
+    }
+
+    private async void OnLlmStreamClicked(object? sender, EventArgs eventArgs)
+    {
+        ResultEditor.Text = "Streaming output:\n\n";
+
+        try
+        {
+            var apiKey = ApiKeyEntry.Text?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                ResultEditor.Text = "Client API key is required.";
+                return;
+            }
+
+            var model = ModelEntry.Text?.Trim() ?? string.Empty;
+            var input = InputEditor.Text?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(model) || string.IsNullOrWhiteSpace(input))
+            {
+                ResultEditor.Text = "Model and input are required.";
+                return;
+            }
+
+            var client = BuildGatewayClient();
+            using var response = await client.PostLlmStreamAsync(
+                new LlmRequest
+                {
+                    Model = model,
+                    Input = input,
+                    Stream = true,
+                },
+                apiKey);
+
+            await using var stream = await response.Content.ReadAsStreamAsync();
+            using var reader = new StreamReader(stream);
+
+            while (!reader.EndOfStream)
+            {
+                var line = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data:"))
+                {
+                    continue;
+                }
+
+                var data = line[5..].Trim();
+                var chunk = ExtractDisplayChunk(data);
+                if (chunk.Length == 0)
+                {
+                    continue;
+                }
+
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    ResultEditor.Text += chunk;
+                });
+            }
+        }
+        catch (GatewayApiException error)
+        {
+            ResultEditor.Text = $"{error.Message}{Environment.NewLine}{error.ResponseBody}";
+        }
+        catch (Exception error)
+        {
+            ResultEditor.Text = error.Message;
+        }
+    }
+
+    private static string ExtractDisplayChunk(string data)
+    {
+        if (data == "[DONE]")
+        {
+            return "\n\n[done]";
+        }
+
+        try
+        {
+            using var json = JsonDocument.Parse(data);
+            var root = json.RootElement;
+
+            if (root.TryGetProperty("delta", out var delta) && delta.ValueKind == JsonValueKind.String)
+            {
+                return delta.GetString() ?? string.Empty;
+            }
+
+            if (root.TryGetProperty("type", out var type)
+                && type.ValueKind == JsonValueKind.String
+                && type.GetString() == "response.completed")
+            {
+                return "\n\n[completed]";
+            }
+
+            return string.Empty;
+        }
+        catch
+        {
+            return $"{data}{Environment.NewLine}";
         }
     }
 

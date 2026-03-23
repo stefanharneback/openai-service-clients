@@ -50,6 +50,36 @@ public sealed class GatewayClient
         return json;
     }
 
+    public async Task<HttpResponseMessage> PostLlmStreamAsync(
+        LlmRequest request,
+        string apiKey,
+        CancellationToken cancellationToken = default)
+    {
+        var streamRequest = request with { Stream = true };
+
+        using var message = new HttpRequestMessage(HttpMethod.Post, "/v1/llm")
+        {
+            Content = JsonContent.Create(streamRequest, options: SerializerOptions),
+        };
+
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+        var response = await _httpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            return response;
+        }
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        var statusCode = response.StatusCode;
+        response.Dispose();
+
+        throw new GatewayApiException(
+            statusCode,
+            $"Gateway request failed with status {(int)statusCode}.",
+            body);
+    }
+
     private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         if (response.IsSuccessStatusCode)

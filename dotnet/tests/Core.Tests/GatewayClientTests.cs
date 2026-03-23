@@ -91,6 +91,63 @@ public sealed class GatewayClientTests
         Assert.Contains("invalid_auth", error.ResponseBody);
     }
 
+    [Fact]
+    public async Task PostLlmStreamAsync_SendsStreamRequestAndReturnsSsePayload()
+    {
+        HttpRequestMessage? capturedRequest = null;
+        string? capturedRequestBody = null;
+
+        var client = CreateClient(request =>
+        {
+            capturedRequest = request;
+            capturedRequestBody = request.Content?.ReadAsStringAsync().GetAwaiter().GetResult();
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("data: {\"type\":\"response.output_text.delta\",\"delta\":\"hello\"}\n\ndata: [DONE]\n\n", Encoding.UTF8, "text/event-stream"),
+            };
+        });
+
+        using var response = await client.PostLlmStreamAsync(
+            new LlmRequest
+            {
+                Model = "gpt-5.4-mini",
+                Input = "hello",
+                Stream = false,
+            },
+            "client-secret");
+
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.NotNull(capturedRequest);
+        Assert.NotNull(capturedRequestBody);
+        Assert.Contains("\"stream\":true", capturedRequestBody);
+        Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("data:", body);
+    }
+
+    [Fact]
+    public async Task PostLlmStreamAsync_ThrowsGatewayApiException_OnError()
+    {
+        var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+        {
+            Content = new StringContent("{\"error\":{\"code\":\"rate_limit\"}}", Encoding.UTF8, "application/json"),
+        });
+
+        var error = await Assert.ThrowsAsync<GatewayApiException>(async () =>
+        {
+            using var _ = await client.PostLlmStreamAsync(
+                new LlmRequest
+                {
+                    Model = "gpt-5.4-mini",
+                    Input = "hello",
+                },
+                "client-secret");
+        });
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, error.StatusCode);
+        Assert.Contains("rate_limit", error.ResponseBody);
+    }
+
     private static GatewayClient CreateClient(Func<HttpRequestMessage, HttpResponseMessage> responder)
     {
         var handler = new StubHandler(responder);

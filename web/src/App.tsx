@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { getHealth, sendLlm, type HealthResponse } from "./api/client";
+import { getHealth, sendLlm, streamLlm, type HealthResponse } from "./api/client";
 
 const defaultBaseUrl = "http://localhost:3000";
 
@@ -8,9 +8,11 @@ function App() {
   const [baseUrl, setBaseUrl] = useState(defaultBaseUrl);
   const [result, setResult] = useState<HealthResponse | null>(null);
   const [llmResult, setLlmResult] = useState<unknown>(null);
+  const [llmStreamResult, setLlmStreamResult] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [llmLoading, setLlmLoading] = useState(false);
+  const [llmStreaming, setLlmStreaming] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("gpt-5.4-mini");
   const [input, setInput] = useState("Summarize the value of API gateways in three bullets.");
@@ -41,11 +43,38 @@ function App() {
         stream: false,
       });
       setLlmResult(payload);
+      setLlmStreamResult("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
       setLlmResult(null);
     } finally {
       setLlmLoading(false);
+    }
+  };
+
+  const runLlmStream = async () => {
+    setLlmStreaming(true);
+    setError(null);
+    setLlmResult(null);
+    setLlmStreamResult("Streaming output:\n\n");
+
+    try {
+      await streamLlm(
+        baseUrl,
+        apiKey,
+        {
+          model,
+          input,
+          stream: true,
+        },
+        (chunk) => {
+          setLlmStreamResult((previous) => previous + chunk);
+        },
+      );
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setLlmStreaming(false);
     }
   };
 
@@ -69,7 +98,7 @@ function App() {
         {error ? <pre className="error">{error}</pre> : null}
         {result ? <pre>{JSON.stringify(result, null, 2)}</pre> : null}
 
-        <h2>LLM (non-stream)</h2>
+        <h2>LLM</h2>
 
         <label htmlFor="api-key">Client API key</label>
         <input
@@ -98,7 +127,12 @@ function App() {
           {llmLoading ? "Running..." : "Send /v1/llm"}
         </button>
 
+        <button onClick={runLlmStream} disabled={llmStreaming}>
+          {llmStreaming ? "Streaming..." : "Stream /v1/llm"}
+        </button>
+
         {llmResult ? <pre>{JSON.stringify(llmResult, null, 2)}</pre> : null}
+        {llmStreamResult ? <pre>{llmStreamResult}</pre> : null}
       </section>
     </main>
   );
