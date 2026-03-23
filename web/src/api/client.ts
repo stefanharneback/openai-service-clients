@@ -5,6 +5,12 @@ export type HealthResponse = {
   now: string;
 };
 
+export type LlmRequest = {
+  model: string;
+  input: string;
+  stream?: boolean;
+};
+
 export const getHealth = async (baseUrl: string): Promise<HealthResponse> => {
   const response = await fetch(`${baseUrl}/health`);
   if (!response.ok) {
@@ -12,4 +18,30 @@ export const getHealth = async (baseUrl: string): Promise<HealthResponse> => {
   }
 
   return (await response.json()) as HealthResponse;
+};
+
+export const sendLlm = async (
+  baseUrl: string,
+  apiKey: string,
+  payload: LlmRequest,
+): Promise<unknown> => {
+  const response = await fetch(`${baseUrl}/v1/llm`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const responseText = await response.text();
+  if (!response.ok) {
+    throw new Error(`LLM request failed (${response.status}): ${responseText}`);
+  }
+
+  try {
+    return JSON.parse(responseText) as unknown;
+  } catch {
+    return responseText;
+  }
 };

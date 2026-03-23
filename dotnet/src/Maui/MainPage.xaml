@@ -3,10 +3,30 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="OpenAiServiceClients.Maui.MainPage"
              Title="OpenAI Service Clients">
+    <ScrollView>
     <VerticalStackLayout Padding="24" Spacing="12">
         <Label Text="OpenAI Service Clients"
                FontSize="28"
                FontAttributes="Bold" />
-        <Label Text="MAUI starter shell is ready." />
+        <Label Text="MAUI starter client for gateway full-chain testing." />
+
+        <Label Text="Gateway base URL" />
+        <Entry x:Name="BaseUrlEntry" Text="http://localhost:3000" />
+
+        <Label Text="Client API key" />
+        <Entry x:Name="ApiKeyEntry" IsPassword="True" Placeholder="sk-client-..." />
+
+        <Label Text="Model" />
+        <Entry x:Name="ModelEntry" Text="gpt-5.4-mini" />
+
+        <Label Text="Input" />
+        <Editor x:Name="InputEditor" HeightRequest="120" Text="Summarize the value of API gateways in three bullets." />
+
+        <Button Text="Check /health" Clicked="OnHealthClicked" />
+        <Button Text="Send /v1/llm" Clicked="OnLlmClicked" />
+
+        <Label Text="Result" FontAttributes="Bold" />
+        <Editor x:Name="ResultEditor" AutoSize="TextChanges" IsReadOnly="True" HeightRequest="220" />
     </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>

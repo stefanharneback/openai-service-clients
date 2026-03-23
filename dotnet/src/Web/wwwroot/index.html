@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenAI Service Clients - .NET Web</title>
+    <style>
+      body { font-family: Segoe UI, Arial, sans-serif; margin: 0; background: #f4f8ff; }
+      main { max-width: 900px; margin: 3rem auto; background: #fff; border: 1px solid #d7e1ff; border-radius: 14px; padding: 1.25rem; }
+      input, textarea, button { width: 100%; box-sizing: border-box; margin-top: 0.4rem; margin-bottom: 0.9rem; }
+      input, textarea { padding: 0.65rem; border: 1px solid #b8c9ff; border-radius: 8px; }
+      button { padding: 0.65rem; border: none; border-radius: 8px; background: #1f5ad8; color: #fff; cursor: pointer; }
+      pre { background: #f4f7ff; border-radius: 8px; padding: 0.8rem; overflow: auto; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>.NET Web Client</h1>
+      <p>Calls this app's backend endpoints which use the shared Core gateway client.</p>
+
+      <button id="healthBtn">Check /api/health</button>
+      <pre id="healthResult">No health result yet.</pre>
+
+      <h2>LLM (non-stream)</h2>
+      <div class="row">
+        <div>
+          <label for="apiKey">Client API key</label>
+          <input id="apiKey" type="password" />
+        </div>
+        <div>
+          <label for="model">Model</label>
+          <input id="model" value="gpt-5.4-mini" />
+        </div>
+      </div>
+
+      <label for="input">Input</label>
+      <textarea id="input" rows="5">Summarize the value of API gateways in three bullets.</textarea>
+
+      <button id="llmBtn">Send /api/llm</button>
+      <pre id="llmResult">No LLM result yet.</pre>
+    </main>
+
+    <script>
+      const healthBtn = document.getElementById("healthBtn");
+      const llmBtn = document.getElementById("llmBtn");
+      const healthResult = document.getElementById("healthResult");
+      const llmResult = document.getElementById("llmResult");
+
+      healthBtn.addEventListener("click", async () => {
+        healthResult.textContent = "Loading...";
+        try {
+          const response = await fetch("/api/health");
+          const payload = await response.json();
+          healthResult.textContent = JSON.stringify(payload, null, 2);
+        } catch (error) {
+          healthResult.textContent = String(error);
+        }
+      });
+
+      llmBtn.addEventListener("click", async () => {
+        llmResult.textContent = "Loading...";
+
+        const payload = {
+          apiKey: document.getElementById("apiKey").value,
+          model: document.getElementById("model").value,
+          input: document.getElementById("input").value,
+        };
+
+        try {
+          const response = await fetch("/api/llm", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const text = await response.text();
+          llmResult.textContent = text;
+        } catch (error) {
+          llmResult.textContent = String(error);
+        }
+      });
+    </script>
+  </body>
+</html>

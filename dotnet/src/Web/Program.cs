@@ -1,6 +1,61 @@
+using OpenAiServiceClients.Core;
+using OpenAiServiceClients.Core.Models;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddHttpClient<GatewayClient>((serviceProvider, httpClient) =>
+{
+	var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+	var baseUrl = configuration["Gateway:BaseUrl"] ?? "http://localhost:3000";
+	httpClient.BaseAddress = new Uri(baseUrl);
+});
+
 var app = builder.Build();
 
-app.MapGet("/", () => "Hello World!");
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+app.MapGet("/api/health", async (GatewayClient gatewayClient, CancellationToken cancellationToken) =>
+{
+	var payload = await gatewayClient.GetHealthAsync(cancellationToken);
+	return Results.Ok(payload);
+});
+
+app.MapPost("/api/llm", async (GatewayClient gatewayClient, LlmPromptInput input, CancellationToken cancellationToken) =>
+{
+	if (string.IsNullOrWhiteSpace(input.ApiKey))
+	{
+		return Results.BadRequest(new { error = "apiKey is required." });
+	}
+
+	if (string.IsNullOrWhiteSpace(input.Model) || string.IsNullOrWhiteSpace(input.Input))
+	{
+		return Results.BadRequest(new { error = "model and input are required." });
+	}
+
+	try
+	{
+		using var payload = await gatewayClient.PostLlmAsync(
+			new LlmRequest
+			{
+				Model = input.Model,
+				Input = input.Input,
+				Stream = false,
+			},
+			input.ApiKey,
+			cancellationToken);
+
+		return Results.Text(payload.RootElement.GetRawText(), "application/json");
+	}
+	catch (GatewayApiException error)
+	{
+		return Results.Problem(
+			title: "Gateway request failed",
+			detail: error.ResponseBody,
+			statusCode: (int)error.StatusCode);
+	}
+});
 
 app.Run();
+
+internal sealed record LlmPromptInput(string ApiKey, string Model, string Input);
