@@ -1,0 +1,20 @@
+# Secrets and local settings
+.env*
+*.pem
+*.p12
+*.key
+
+# Build outputs
+**/bin/
+**/obj/
+**/dist/
+**/build/
+**/.next/
+**/node_modules/
+
+# Coverage and reports
+**/coverage/
+**/TestResults/
+
+# Local editor/private overrides
+.github/copilot/settings.local.json

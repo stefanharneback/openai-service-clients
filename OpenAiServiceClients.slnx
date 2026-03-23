@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/dotnet/" />
+  <Folder Name="/dotnet/src/" />
+  <Folder Name="/dotnet/src/Core/">
+    <Project Path="dotnet/src/Core/OpenAiServiceClients.Core.csproj" />
+  </Folder>
+  <Folder Name="/dotnet/src/Maui/">
+    <Project Path="dotnet/src/Maui/OpenAiServiceClients.Maui.csproj" />
+  </Folder>
+  <Folder Name="/dotnet/src/Web/">
+    <Project Path="dotnet/src/Web/OpenAiServiceClients.Web.csproj" />
+  </Folder>
+  <Folder Name="/dotnet/tests/" />
+  <Folder Name="/dotnet/tests/Core.Tests/">
+    <Project Path="dotnet/tests/Core.Tests/OpenAiServiceClients.Core.Tests.csproj" />
+  </Folder>
+</Solution>

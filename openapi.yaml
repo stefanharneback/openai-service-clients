@@ -1,0 +1,436 @@
+openapi: 3.1.0
+info:
+  title: OpenAI API Service
+  version: 0.1.0
+  description: |
+    Vercel-first TypeScript gateway for OpenAI Responses API and Audio transcription APIs.
+
+    ## OpenAI API references
+    - Responses API: https://platform.openai.com/docs/api-reference/responses
+    - Audio transcriptions: https://platform.openai.com/docs/api-reference/audio/createTranscription
+    - Models: https://platform.openai.com/docs/models
+servers:
+  - url: https://your-service.vercel.app
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    LlmRequest:
+      type: object
+      additionalProperties: true
+      required: [model, input]
+      description: |
+        Core validation is applied to `model`, `input`, and selected high-signal fields.
+        Additional current Responses API fields are forwarded transparently to reduce drift.
+      properties:
+        model:
+          type: string
+          description: "OpenAI model ID, e.g. gpt-5.4 or gpt-5.4-mini"
+        input:
+          oneOf:
+            - type: string
+            - type: array
+              items: {}
+        instructions:
+          type: string
+        background:
+          type: boolean
+        include:
+          type: array
+          items:
+            type: string
+        max_tool_calls:
+          type: integer
+          minimum: 1
+        metadata:
+          type: object
+          additionalProperties: true
+        parallel_tool_calls:
+          type: boolean
+        previous_response_id:
+          type: string
+        prompt: {}
+        reasoning:
+          type: object
+          additionalProperties: true
+        safety_identifier:
+          type: string
+        service_tier:
+          type: string
+          enum: [auto, default, flex, scale, priority]
+        store:
+          type: boolean
+        stream_options:
+          type: object
+          additionalProperties: true
+        tools:
+          type: array
+          items: {}
+        temperature:
+          type: number
+          minimum: 0
+          maximum: 2
+        top_p:
+          type: number
+          minimum: 0
+          maximum: 1
+        max_output_tokens:
+          type: integer
+          minimum: 1
+          maximum: 128000
+        stream:
+          type: boolean
+          description: "If true, response is sent as Server-Sent Events."
+        text:
+          type: object
+          additionalProperties: true
+        tool_choice:
+          oneOf:
+            - type: string
+            - type: object
+              additionalProperties: true
+        truncation: {}
+        conversation:
+          oneOf:
+            - type: string
+            - type: object
+              additionalProperties: true
+          description: "Conversation ID (string) or conversation configuration object for multi-turn context."
+        context_management:
+          type: object
+          additionalProperties: true
+          description: "Context management configuration for conversation context trimming."
+        prompt_cache_key:
+          type: string
+          description: "Key for caching prompt prefixes across requests."
+        prompt_cache_retention:
+          type: object
+          additionalProperties: true
+          description: "Prompt cache retention configuration (e.g. minutes)."
+        top_logprobs:
+          type: integer
+          minimum: 0
+          maximum: 20
+          description: "Number of top log probabilities to return per token."
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            requestId:
+              type: string
+              format: uuid
+    UsageItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        endpoint:
+          type: string
+        model:
+          type: string
+        http_status:
+          type: integer
+        duration_ms:
+          type: integer
+        input_tokens:
+          type: integer
+          nullable: true
+        output_tokens:
+          type: integer
+          nullable: true
+        total_tokens:
+          type: integer
+          nullable: true
+        total_cost_usd:
+          type: number
+          nullable: true
+    UsageResponse:
+      type: object
+      properties:
+        clientId:
+          type: string
+          format: uuid
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsageItem'
+        limit:
+          type: integer
+        offset:
+          type: integer
+    AdminUsageResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/UsageItem'
+              - type: object
+                properties:
+                  client_id:
+                    type: string
+                    format: uuid
+        limit:
+          type: integer
+        offset:
+          type: integer
+    PurgeResponse:
+      type: object
+      properties:
+        purged:
+          type: integer
+  paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  service:
+                    type: string
+                  requestId:
+                    type: string
+                  now:
+                    type: string
+                    format: date-time
+  /v1/llm:
+    post:
+      summary: Proxy an OpenAI Responses API request
+      description: |
+        Forwards the request body to OpenAI's Responses API (`POST /v1/responses`).
+        When `stream: true`, the response is returned as Server-Sent Events (SSE).
+        Additional Responses API fields are forwarded transparently beyond the gateway's core validation.
+        The gateway records the full request/response, token usage, and estimated cost.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LlmRequest'
+      responses:
+        '200':
+          description: OpenAI response payload (JSON or SSE stream)
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Model not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Request body too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/whisper:
+    post:
+      summary: Proxy an OpenAI transcription request
+      description: |
+        Forwards audio to OpenAI's Audio API (`POST /v1/audio/transcriptions`).
+        Accepts file upload or a remote URL. SSRF-protected URL fetching is built in.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [model]
+              properties:
+                model:
+                  type: string
+                  description: "e.g. gpt-4o-transcribe, gpt-4o-mini-transcribe, gpt-4o-transcribe-diarize, whisper-1"
+                file:
+                  type: string
+                  format: binary
+                audio_url:
+                  type: string
+                  format: uri
+                  description: "Remote URL to fetch audio from (alternative to file upload)"
+                stream:
+                  type: boolean
+                  description: "When true, the response is streamed as SSE (text/event-stream). Supported by gpt-4o-transcribe, gpt-4o-mini-transcribe, and gpt-4o-transcribe-diarize."
+      responses:
+        '200':
+          description: OpenAI transcription payload
+        '400':
+          description: Validation or audio error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Audio file too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/usage:
+    get:
+      summary: List usage for the authenticated client
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Usage entries for the calling client
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageResponse'
+        '401':
+          description: Authentication error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/admin/usage:
+    get:
+      summary: List usage across all clients (admin only)
+      description: Requires the SERVICE_ADMIN_KEY as the bearer token.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Usage entries across all clients
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUsageResponse'
+        '403':
+          description: Forbidden — invalid admin key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/admin/retention:
+    get:
+      summary: Purge expired ledger rows
+      description: Accepts the SERVICE_ADMIN_KEY or CRON_SECRET as the bearer token.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Number of purged request rows
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurgeResponse'
+        '401':
+          description: Missing bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden — invalid admin or cron key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Purge expired ledger rows manually
+      description: Requires the SERVICE_ADMIN_KEY as the bearer token.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Number of purged request rows
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurgeResponse'
+        '401':
+          description: Missing bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden — invalid admin key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

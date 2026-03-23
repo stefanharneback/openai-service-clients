@@ -1,0 +1,29 @@
+name: dotnet
+
+on:
+  pull_request:
+    paths:
+      - "dotnet/**"
+      - ".github/workflows/dotnet.yml"
+  push:
+    branches: [main]
+    paths:
+      - "dotnet/**"
+      - ".github/workflows/dotnet.yml"
+
+jobs:
+  dotnet:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+      - name: Restore
+        run: dotnet restore OpenAiServiceClients.slnx
+      - name: Build non-MAUI projects
+        run: |
+          dotnet build dotnet/src/Core/OpenAiServiceClients.Core.csproj --no-restore
+          dotnet build dotnet/src/Web/OpenAiServiceClients.Web.csproj --no-restore
+      - name: Test
+        run: dotnet test dotnet/tests/Core.Tests/OpenAiServiceClients.Core.Tests.csproj --no-build

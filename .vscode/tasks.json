@@ -1,0 +1,68 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "web:install",
+      "type": "shell",
+      "command": "npm --prefix web install",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "web:check",
+      "type": "shell",
+      "command": "npm --prefix web run check",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "web:test",
+      "type": "shell",
+      "command": "npm --prefix web test",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "dotnet:restore",
+      "type": "shell",
+      "command": "dotnet restore OpenAiServiceClients.slnx",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "dotnet:build:core",
+      "type": "shell",
+      "command": "dotnet build dotnet/src/Core/OpenAiServiceClients.Core.csproj",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "dotnet:build:web",
+      "type": "shell",
+      "command": "dotnet build dotnet/src/Web/OpenAiServiceClients.Web.csproj",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "dotnet:build:maui",
+      "type": "shell",
+      "command": "dotnet build dotnet/src/Maui/OpenAiServiceClients.Maui.csproj",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "dotnet:test",
+      "type": "shell",
+      "command": "dotnet test dotnet/tests/Core.Tests/OpenAiServiceClients.Core.Tests.csproj",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "dotnet:workload:restore",
+      "type": "shell",
+      "command": "dotnet workload restore",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

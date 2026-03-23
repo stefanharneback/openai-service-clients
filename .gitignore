@@ -1,0 +1,37 @@
+# Node
+node_modules/
+dist/
+build/
+.next/
+coverage/
+.vercel/
+
+# Dotnet
+**/bin/
+**/obj/
+TestResults/
+.vs/
+*.suo
+*.user
+*.userprefs
+*.rsuser
+
+# Env and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+*.key
+*.jks
+*.keystore
+
+# Editor
+.vscode/*.local.json
+.github/copilot/settings.local.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

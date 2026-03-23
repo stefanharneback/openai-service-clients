@@ -1,0 +1,21 @@
+name: contract-sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"
+  pull_request:
+    paths:
+      - "openapi.yaml"
+      - "scripts/sync-openapi.ps1"
+      - ".github/workflows/contract-sync.yml"
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify OpenAPI file exists
+        run: test -f openapi.yaml
+      - name: Show OpenAPI version line
+        run: grep -n "^openapi:" openapi.yaml
