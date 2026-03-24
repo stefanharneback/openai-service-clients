@@ -183,4 +183,111 @@ public partial class MainPage : ContentPage
 
         return new GatewayClient(httpClient);
     }
+
+    private async void OnWhisperClicked(object? sender, EventArgs eventArgs)
+    {
+        ResultEditor.Text = "Picking audio file...";
+        try
+        {
+            var apiKey = ApiKeyEntry.Text?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                ResultEditor.Text = "Client API key is required.";
+                return;
+            }
+
+            var model = WhisperModelEntry.Text?.Trim() ?? "whisper-1";
+
+            var result = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Select an audio file",
+                FileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
+                {
+                    { DevicePlatform.WinUI,    new[] { ".mp3", ".mp4", ".wav", ".m4a", ".webm", ".ogg", ".flac", ".aac" } },
+                    { DevicePlatform.iOS,      new[] { "public.audio" } },
+                    { DevicePlatform.MacCatalyst, new[] { "public.audio" } },
+                    { DevicePlatform.Android,  new[] { "audio/*" } },
+                }),
+            });
+
+            if (result is null)
+            {
+                ResultEditor.Text = "No file selected.";
+                return;
+            }
+
+            ResultEditor.Text = $"Transcribing {result.FileName}...";
+
+            await using var stream = await result.OpenReadAsync();
+            var client = BuildGatewayClient();
+            using var payload = await client.PostWhisperAsync(stream, result.FileName, model, apiKey);
+            ResultEditor.Text = payload.RootElement.GetRawText();
+        }
+        catch (GatewayApiException error)
+        {
+            ResultEditor.Text = $"{error.Message}{Environment.NewLine}{error.ResponseBody}";
+        }
+        catch (Exception error)
+        {
+            ResultEditor.Text = error.Message;
+        }
+    }
+
+    private async void OnUsageClicked(object? sender, EventArgs eventArgs)
+    {
+        ResultEditor.Text = "Loading usage...";
+        try
+        {
+            var apiKey = ApiKeyEntry.Text?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                ResultEditor.Text = "Client API key is required.";
+                return;
+            }
+
+            if (!int.TryParse(UsageLimitEntry.Text, out var limit))  limit = 20;
+            if (!int.TryParse(UsageOffsetEntry.Text, out var offset)) offset = 0;
+
+            var client = BuildGatewayClient();
+            var payload = await client.GetUsageAsync(apiKey, limit, offset);
+            ResultEditor.Text = System.Text.Json.JsonSerializer.Serialize(payload, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (GatewayApiException error)
+        {
+            ResultEditor.Text = $"{error.Message}{Environment.NewLine}{error.ResponseBody}";
+        }
+        catch (Exception error)
+        {
+            ResultEditor.Text = error.Message;
+        }
+    }
+
+    private async void OnAdminUsageClicked(object? sender, EventArgs eventArgs)
+    {
+        ResultEditor.Text = "Loading admin usage...";
+        try
+        {
+            var adminKey = AdminKeyEntry.Text?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(adminKey))
+            {
+                ResultEditor.Text = "Admin key is required.";
+                return;
+            }
+
+            if (!int.TryParse(AdminLimitEntry.Text, out var limit))  limit = 20;
+            if (!int.TryParse(AdminOffsetEntry.Text, out var offset)) offset = 0;
+
+            var client = BuildGatewayClient();
+            var payload = await client.GetAdminUsageAsync(adminKey, limit, offset);
+            ResultEditor.Text = System.Text.Json.JsonSerializer.Serialize(payload, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (GatewayApiException error)
+        {
+            ResultEditor.Text = $"{error.Message}{Environment.NewLine}{error.ResponseBody}";
+        }
+        catch (Exception error)
+        {
+            ResultEditor.Text = error.Message;
+        }
+    }
 }

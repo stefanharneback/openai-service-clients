@@ -26,6 +26,28 @@
         <Button Text="Send /v1/llm" Clicked="OnLlmClicked" />
         <Button Text="Stream /v1/llm" Clicked="OnLlmStreamClicked" />
 
+        <Label Text="Whisper" FontSize="20" FontAttributes="Bold" Margin="0,12,0,0" />
+        <Label Text="Whisper model" />
+        <Entry x:Name="WhisperModelEntry" Text="whisper-1" />
+
+        <Button Text="Pick Audio &amp; Transcribe /v1/whisper" Clicked="OnWhisperClicked" />
+
+        <Label Text="Usage" FontSize="20" FontAttributes="Bold" Margin="0,12,0,0" />
+        <Label Text="Limit" />
+        <Entry x:Name="UsageLimitEntry" Text="20" Keyboard="Numeric" />
+        <Label Text="Offset" />
+        <Entry x:Name="UsageOffsetEntry" Text="0" Keyboard="Numeric" />
+        <Button Text="Get /v1/usage" Clicked="OnUsageClicked" />
+
+        <Label Text="Admin Usage" FontSize="20" FontAttributes="Bold" Margin="0,12,0,0" />
+        <Label Text="Admin key" />
+        <Entry x:Name="AdminKeyEntry" IsPassword="True" Placeholder="admin-secret..." />
+        <Label Text="Limit" />
+        <Entry x:Name="AdminLimitEntry" Text="20" Keyboard="Numeric" />
+        <Label Text="Offset" />
+        <Entry x:Name="AdminOffsetEntry" Text="0" Keyboard="Numeric" />
+        <Button Text="Get /v1/admin/usage" Clicked="OnAdminUsageClicked" />
+
         <Label Text="Result" FontAttributes="Bold" />
         <Editor x:Name="ResultEditor" AutoSize="TextChanges" IsReadOnly="True" HeightRequest="220" />
     </VerticalStackLayout>

@@ -80,6 +80,81 @@ public sealed class GatewayClient
             body);
     }
 
+    public async Task<JsonDocument> PostWhisperAsync(
+        Stream audioStream,
+        string fileName,
+        string model,
+        string apiKey,
+        CancellationToken cancellationToken = default)
+    {
+        using var content = new MultipartFormDataContent();
+        content.Add(new StringContent(model), "model");
+
+        var streamContent = new StreamContent(audioStream);
+        content.Add(streamContent, "file", fileName);
+
+        using var message = new HttpRequestMessage(HttpMethod.Post, "/v1/whisper")
+        {
+            Content = content,
+        };
+
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+        using var response = await _httpClient.SendAsync(message, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+    }
+
+    public async Task<UsageResponse> GetUsageAsync(
+        string apiKey,
+        int limit = 20,
+        int offset = 0,
+        CancellationToken cancellationToken = default)
+    {
+        using var message = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"/v1/usage?limit={limit}&offset={offset}");
+
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+        using var response = await _httpClient.SendAsync(message, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        var payload = await response.Content.ReadFromJsonAsync<UsageResponse>(SerializerOptions, cancellationToken);
+        if (payload is null)
+        {
+            throw new InvalidOperationException("Usage payload was empty.");
+        }
+
+        return payload;
+    }
+
+    public async Task<AdminUsageResponse> GetAdminUsageAsync(
+        string adminKey,
+        int limit = 20,
+        int offset = 0,
+        CancellationToken cancellationToken = default)
+    {
+        using var message = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"/v1/admin/usage?limit={limit}&offset={offset}");
+
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminKey);
+
+        using var response = await _httpClient.SendAsync(message, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        var payload = await response.Content.ReadFromJsonAsync<AdminUsageResponse>(SerializerOptions, cancellationToken);
+        if (payload is null)
+        {
+            throw new InvalidOperationException("Admin usage payload was empty.");
+        }
+
+        return payload;
+    }
+
     private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         if (response.IsSuccessStatusCode)

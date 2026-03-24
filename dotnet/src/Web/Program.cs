@@ -100,6 +100,91 @@ app.MapPost("/api/llm/stream", async (HttpContext context, GatewayClient gateway
 	}
 });
 
+app.MapPost("/api/whisper", async (HttpContext context, GatewayClient gatewayClient, CancellationToken cancellationToken) =>
+{
+	var form = await context.Request.ReadFormAsync(cancellationToken);
+	var apiKey = form["apiKey"].ToString();
+	var model = form["model"].ToString();
+	var file = form.Files.GetFile("file");
+
+	if (string.IsNullOrWhiteSpace(apiKey))
+	{
+		return Results.BadRequest(new { error = "apiKey is required." });
+	}
+
+	if (string.IsNullOrWhiteSpace(model))
+	{
+		return Results.BadRequest(new { error = "model is required." });
+	}
+
+	if (file is null || file.Length == 0)
+	{
+		return Results.BadRequest(new { error = "file is required." });
+	}
+
+	try
+	{
+		await using var stream = file.OpenReadStream();
+		using var payload = await gatewayClient.PostWhisperAsync(
+			stream,
+			file.FileName,
+			model,
+			apiKey,
+			cancellationToken);
+
+		return Results.Text(payload.RootElement.GetRawText(), "application/json");
+	}
+	catch (GatewayApiException error)
+	{
+		return Results.Problem(
+			title: "Gateway request failed",
+			detail: error.ResponseBody,
+			statusCode: (int)error.StatusCode);
+	}
+});
+
+app.MapGet("/api/usage", async (GatewayClient gatewayClient, string? apiKey, int limit = 20, int offset = 0, CancellationToken cancellationToken = default) =>
+{
+	if (string.IsNullOrWhiteSpace(apiKey))
+	{
+		return Results.BadRequest(new { error = "apiKey is required." });
+	}
+
+	try
+	{
+		var payload = await gatewayClient.GetUsageAsync(apiKey, limit, offset, cancellationToken);
+		return Results.Ok(payload);
+	}
+	catch (GatewayApiException error)
+	{
+		return Results.Problem(
+			title: "Gateway request failed",
+			detail: error.ResponseBody,
+			statusCode: (int)error.StatusCode);
+	}
+});
+
+app.MapGet("/api/admin/usage", async (GatewayClient gatewayClient, string? adminKey, int limit = 20, int offset = 0, CancellationToken cancellationToken = default) =>
+{
+	if (string.IsNullOrWhiteSpace(adminKey))
+	{
+		return Results.BadRequest(new { error = "adminKey is required." });
+	}
+
+	try
+	{
+		var payload = await gatewayClient.GetAdminUsageAsync(adminKey, limit, offset, cancellationToken);
+		return Results.Ok(payload);
+	}
+	catch (GatewayApiException error)
+	{
+		return Results.Problem(
+			title: "Gateway request failed",
+			detail: error.ResponseBody,
+			statusCode: (int)error.StatusCode);
+	}
+});
+
 app.Run();
 
 internal sealed record LlmPromptInput(string ApiKey, string Model, string Input);

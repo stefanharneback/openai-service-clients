@@ -142,3 +142,102 @@ export const streamLlm = async (
     }
   }
 };
+
+export const postWhisper = async (
+  baseUrl: string,
+  apiKey: string,
+  model: string,
+  file: File,
+): Promise<unknown> => {
+  const formData = new FormData();
+  formData.append("apiKey", apiKey);
+  formData.append("model", model);
+  formData.append("file", file, file.name);
+
+  const response = await fetch(`${baseUrl}/v1/whisper`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: formData,
+  });
+
+  const responseText = await response.text();
+  if (!response.ok) {
+    throw new Error(`Whisper request failed (${response.status}): ${responseText}`);
+  }
+
+  try {
+    return JSON.parse(responseText) as unknown;
+  } catch {
+    return responseText;
+  }
+};
+
+export type UsageItem = {
+  id: string;
+  created_at: string;
+  endpoint: string;
+  model: string;
+  http_status: number;
+  duration_ms: number;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  total_tokens?: number | null;
+  total_cost_usd?: number | null;
+};
+
+export type AdminUsageItem = UsageItem & {
+  client_id?: string | null;
+};
+
+export type UsageResponse = {
+  clientId: string;
+  items: UsageItem[];
+  limit: number;
+  offset: number;
+};
+
+export type AdminUsageResponse = {
+  items: AdminUsageItem[];
+  limit: number;
+  offset: number;
+};
+
+export const getUsage = async (
+  baseUrl: string,
+  apiKey: string,
+  limit = 20,
+  offset = 0,
+): Promise<UsageResponse> => {
+  const url = `${baseUrl}/v1/usage?limit=${limit}&offset=${offset}`;
+  const response = await fetch(url, {
+    headers: { authorization: `Bearer ${apiKey}` },
+  });
+
+  const responseText = await response.text();
+  if (!response.ok) {
+    throw new Error(`Usage request failed (${response.status}): ${responseText}`);
+  }
+
+  return JSON.parse(responseText) as UsageResponse;
+};
+
+export const getAdminUsage = async (
+  baseUrl: string,
+  adminKey: string,
+  limit = 20,
+  offset = 0,
+): Promise<AdminUsageResponse> => {
+  const url = `${baseUrl}/v1/admin/usage?limit=${limit}&offset=${offset}`;
+  const response = await fetch(url, {
+    headers: { authorization: `Bearer ${adminKey}` },
+  });
+
+  const responseText = await response.text();
+  if (!response.ok) {
+    throw new Error(`Admin usage request failed (${response.status}): ${responseText}`);
+  }
+
+  return JSON.parse(responseText) as AdminUsageResponse;
+};

@@ -40,14 +40,66 @@
       <button id="llmBtn">Send /api/llm</button>
       <button id="llmStreamBtn">Stream /api/llm/stream</button>
       <pre id="llmResult">No LLM result yet.</pre>
+
+      <h2>Whisper</h2>
+      <div class="row">
+        <div>
+          <label for="whisperApiKey">Client API key</label>
+          <input id="whisperApiKey" type="password" />
+        </div>
+        <div>
+          <label for="whisperModel">Model</label>
+          <input id="whisperModel" value="whisper-1" />
+        </div>
+      </div>
+
+      <label for="whisperFile">Audio file</label>
+      <input id="whisperFile" type="file" accept="audio/*,.mp3,.mp4,.wav,.m4a,.webm,.ogg,.flac,.aac" />
+
+      <button id="whisperBtn">Transcribe /api/whisper</button>
+      <pre id="whisperResult">No transcription result yet.</pre>
+
+      <h2>Usage</h2>
+      <div>
+          <label for="usageApiKey">Client API key</label>
+          <input id="usageApiKey" type="password" />
+      </div>
+      <div>
+          <label for="usageLimit">Limit</label>
+          <input id="usageLimit" type="number" value="20" min="1" max="100" />
+          <label for="usageOffset">Offset</label>
+          <input id="usageOffset" type="number" value="0" min="0" />
+      </div>
+      <button id="usageBtn">Get /api/usage</button>
+      <pre id="usageResult">No usage result yet.</pre>
+
+      <h2>Admin Usage</h2>
+      <div>
+          <label for="adminUsageKey">Admin key</label>
+          <input id="adminUsageKey" type="password" />
+      </div>
+      <div>
+          <label for="adminLimit">Limit</label>
+          <input id="adminLimit" type="number" value="20" min="1" max="100" />
+          <label for="adminOffset">Offset</label>
+          <input id="adminOffset" type="number" value="0" min="0" />
+      </div>
+      <button id="adminUsageBtn">Get /api/admin/usage</button>
+      <pre id="adminUsageResult">No admin usage result yet.</pre>
     </main>
 
     <script>
       const healthBtn = document.getElementById("healthBtn");
       const llmBtn = document.getElementById("llmBtn");
       const llmStreamBtn = document.getElementById("llmStreamBtn");
+      const whisperBtn = document.getElementById("whisperBtn");
+      const usageBtn = document.getElementById("usageBtn");
+      const adminUsageBtn = document.getElementById("adminUsageBtn");
       const healthResult = document.getElementById("healthResult");
       const llmResult = document.getElementById("llmResult");
+      const whisperResult = document.getElementById("whisperResult");
+      const usageResult = document.getElementById("usageResult");
+      const adminUsageResult = document.getElementById("adminUsageResult");
 
       const parseSseDataLine = (line) => {
         if (!line.startsWith("data:")) {
@@ -165,6 +217,60 @@
           }
         } catch (error) {
           llmResult.textContent += `\n\n${String(error)}`;
+        }
+      });
+
+      whisperBtn.addEventListener("click", async () => {
+        const file = document.getElementById("whisperFile").files?.[0];
+        if (!file) {
+          whisperResult.textContent = "Please select an audio file.";
+          return;
+        }
+
+        whisperResult.textContent = "Transcribing...";
+
+        const formData = new FormData();
+        formData.append("apiKey", document.getElementById("whisperApiKey").value);
+        formData.append("model", document.getElementById("whisperModel").value);
+        formData.append("file", file, file.name);
+
+        try {
+          const response = await fetch("/api/whisper", {
+            method: "POST",
+            body: formData,
+          });
+
+          const text = await response.text();
+          whisperResult.textContent = text;
+        } catch (error) {
+          whisperResult.textContent = String(error);
+        }
+      });
+      usageBtn.addEventListener("click", async () => {
+        usageResult.textContent = "Loading...";
+        const apiKey = document.getElementById("usageApiKey").value;
+        const limit = document.getElementById("usageLimit").value;
+        const offset = document.getElementById("usageOffset").value;
+        try {
+          const response = await fetch(`/api/usage?apiKey=${encodeURIComponent(apiKey)}&limit=${limit}&offset=${offset}`);
+          const payload = await response.json();
+          usageResult.textContent = JSON.stringify(payload, null, 2);
+        } catch (error) {
+          usageResult.textContent = String(error);
+        }
+      });
+
+      adminUsageBtn.addEventListener("click", async () => {
+        adminUsageResult.textContent = "Loading...";
+        const adminKey = document.getElementById("adminUsageKey").value;
+        const limit = document.getElementById("adminLimit").value;
+        const offset = document.getElementById("adminOffset").value;
+        try {
+          const response = await fetch(`/api/admin/usage?adminKey=${encodeURIComponent(adminKey)}&limit=${limit}&offset=${offset}`);
+          const payload = await response.json();
+          adminUsageResult.textContent = JSON.stringify(payload, null, 2);
+        } catch (error) {
+          adminUsageResult.textContent = String(error);
         }
       });
     </script>
