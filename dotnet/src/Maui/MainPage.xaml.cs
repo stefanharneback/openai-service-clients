@@ -7,8 +7,18 @@ namespace OpenAiServiceClients.Maui;
 public partial class MainPage : ContentPage
 {
     private const string StorageKeyClientApiKey = "client_api_key";
+    private const string StorageKeyAdminApiKey = "admin_api_key";
+    private const string PreferenceKeyModel = "selected_model";
+    private const string PreferenceKeyWhisperModel = "whisper_model";
+    private const string PreferenceKeyUsageLimit = "usage_limit";
+    private const string PreferenceKeyUsageOffset = "usage_offset";
+    private const string PreferenceKeyAdminLimit = "admin_limit";
+    private const string PreferenceKeyAdminOffset = "admin_offset";
+    private const string PreferenceKeyRememberAdminKey = "remember_admin_key";
 
     private readonly GatewayClient _gatewayClient;
+    private bool _settingsVisible;
+    private bool _isAdminMode;
 
     public MainPage()
     {
@@ -20,8 +30,31 @@ public partial class MainPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        LoadPreferences();
         await LoadStoredApiKeyAsync();
+        await LoadStoredAdminKeyAsync();
         await LoadModelsAsync();
+        SetAdminMode(false, "Admin mode is locked.");
+    }
+
+    private void LoadPreferences()
+    {
+        WhisperModelEntry.Text = Preferences.Default.Get(PreferenceKeyWhisperModel, "whisper-1");
+        UsageLimitEntry.Text = Preferences.Default.Get(PreferenceKeyUsageLimit, "20");
+        UsageOffsetEntry.Text = Preferences.Default.Get(PreferenceKeyUsageOffset, "0");
+        AdminLimitEntry.Text = Preferences.Default.Get(PreferenceKeyAdminLimit, "20");
+        AdminOffsetEntry.Text = Preferences.Default.Get(PreferenceKeyAdminOffset, "0");
+        RememberAdminKeyCheckBox.IsChecked = Preferences.Default.Get(PreferenceKeyRememberAdminKey, false);
+    }
+
+    private void SavePreferences()
+    {
+        Preferences.Default.Set(PreferenceKeyWhisperModel, WhisperModelEntry.Text?.Trim() ?? "whisper-1");
+        Preferences.Default.Set(PreferenceKeyUsageLimit, UsageLimitEntry.Text?.Trim() ?? "20");
+        Preferences.Default.Set(PreferenceKeyUsageOffset, UsageOffsetEntry.Text?.Trim() ?? "0");
+        Preferences.Default.Set(PreferenceKeyAdminLimit, AdminLimitEntry.Text?.Trim() ?? "20");
+        Preferences.Default.Set(PreferenceKeyAdminOffset, AdminOffsetEntry.Text?.Trim() ?? "0");
+        Preferences.Default.Set(PreferenceKeyRememberAdminKey, RememberAdminKeyCheckBox.IsChecked);
     }
 
     private async Task LoadStoredApiKeyAsync()
@@ -31,6 +64,20 @@ public partial class MainPage : ContentPage
             var stored = await SecureStorage.Default.GetAsync(StorageKeyClientApiKey);
             if (!string.IsNullOrEmpty(stored))
                 ApiKeyEntry.Text = stored;
+        }
+        catch
+        {
+            // SecureStorage may be unavailable in some environments.
+        }
+    }
+
+    private async Task LoadStoredAdminKeyAsync()
+    {
+        try
+        {
+            var stored = await SecureStorage.Default.GetAsync(StorageKeyAdminApiKey);
+            if (!string.IsNullOrEmpty(stored))
+                AdminKeyEntry.Text = stored;
         }
         catch
         {
@@ -56,11 +103,17 @@ public partial class MainPage : ContentPage
 
     private void PopulateModelPicker(IReadOnlyList<string> models)
     {
+        var preferredModel = Preferences.Default.Get(PreferenceKeyModel, string.Empty);
         ModelPicker.Items.Clear();
         foreach (var m in models)
             ModelPicker.Items.Add(m);
-        if (ModelPicker.Items.Count > 0)
-            ModelPicker.SelectedIndex = 0;
+        if (ModelPicker.Items.Count == 0)
+            return;
+
+        var preferredIndex = string.IsNullOrWhiteSpace(preferredModel)
+            ? -1
+            : ModelPicker.Items.IndexOf(preferredModel);
+        ModelPicker.SelectedIndex = preferredIndex >= 0 ? preferredIndex : 0;
     }
 
     private void ShowUsage(LlmUsageSummary? usage)
@@ -75,6 +128,78 @@ public partial class MainPage : ContentPage
         if (string.IsNullOrWhiteSpace(apiKey)) return;
         try { await SecureStorage.Default.SetAsync(StorageKeyClientApiKey, apiKey); }
         catch { /* best-effort */ }
+    }
+
+    private static async Task TrySaveAdminKeyAsync(string adminKey)
+    {
+        if (string.IsNullOrWhiteSpace(adminKey)) return;
+        try { await SecureStorage.Default.SetAsync(StorageKeyAdminApiKey, adminKey); }
+        catch { /* best-effort */ }
+    }
+
+    private static void TryRemoveAdminKey()
+    {
+        try { SecureStorage.Default.Remove(StorageKeyAdminApiKey); }
+        catch { /* best-effort */ }
+    }
+
+    private void SetAdminMode(bool enabled, string status)
+    {
+        _isAdminMode = enabled;
+        AdminPanel.IsVisible = enabled;
+        AdminModeStatusLabel.Text = status;
+        AdminModeStatusLabel.TextColor = enabled ? Colors.Green : Colors.Gray;
+    }
+
+    private void OnToggleSettingsClicked(object? sender, EventArgs eventArgs)
+    {
+        _settingsVisible = !_settingsVisible;
+        SettingsPanel.IsVisible = _settingsVisible;
+        ToggleSettingsButton.Text = _settingsVisible ? "Hide Settings" : "Show Settings";
+    }
+
+    private async void OnRefreshModelsClicked(object? sender, EventArgs eventArgs)
+    {
+        await LoadModelsAsync();
+        ResultEditor.Text = "Models refreshed from server (or fallback list if unavailable).";
+    }
+
+    private void OnModelSelectionChanged(object? sender, EventArgs eventArgs)
+    {
+        var selected = ModelPicker.SelectedItem as string;
+        if (!string.IsNullOrWhiteSpace(selected))
+            Preferences.Default.Set(PreferenceKeyModel, selected);
+    }
+
+    private async void OnUnlockAdminClicked(object? sender, EventArgs eventArgs)
+    {
+        var adminKey = AdminKeyEntry.Text?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(adminKey))
+        {
+            SetAdminMode(false, "Admin key is required to unlock admin mode.");
+            return;
+        }
+
+        try
+        {
+            await _gatewayClient.GetAdminUsageAsync(adminKey, 1, 0);
+            SetAdminMode(true, "Admin mode is unlocked for this session.");
+            SavePreferences();
+
+            if (RememberAdminKeyCheckBox.IsChecked)
+                await TrySaveAdminKeyAsync(adminKey);
+            else
+                TryRemoveAdminKey();
+        }
+        catch
+        {
+            SetAdminMode(false, "Admin unlock failed. Check admin key.");
+        }
+    }
+
+    private void OnLockAdminClicked(object? sender, EventArgs eventArgs)
+    {
+        SetAdminMode(false, "Admin mode is locked.");
     }
 
     private async void OnHealthClicked(object? sender, EventArgs eventArgs)
@@ -127,6 +252,7 @@ public partial class MainPage : ContentPage
             ResultEditor.Text = payload.RootElement.GetRawText();
             ShowUsage(LlmPayloadHelper.TryExtractUsage(payload));
             await TrySaveApiKeyAsync(apiKey);
+            SavePreferences();
         }
         catch (GatewayApiException error)
         {
@@ -199,6 +325,7 @@ public partial class MainPage : ContentPage
 
             await MainThread.InvokeOnMainThreadAsync(() => ShowUsage(streamUsage));
             await TrySaveApiKeyAsync(apiKey);
+            SavePreferences();
         }
         catch (GatewayApiException error)
         {
@@ -280,6 +407,8 @@ public partial class MainPage : ContentPage
             await using var stream = await result.OpenReadAsync();
             using var payload = await _gatewayClient.PostWhisperAsync(stream, result.FileName, model, apiKey);
             ResultEditor.Text = payload.RootElement.GetRawText();
+            await TrySaveApiKeyAsync(apiKey);
+            SavePreferences();
         }
         catch (GatewayApiException error)
         {
@@ -308,6 +437,8 @@ public partial class MainPage : ContentPage
 
             var payload = await _gatewayClient.GetUsageAsync(apiKey, limit, offset);
             ResultEditor.Text = System.Text.Json.JsonSerializer.Serialize(payload, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            await TrySaveApiKeyAsync(apiKey);
+            SavePreferences();
         }
         catch (GatewayApiException error)
         {
@@ -324,6 +455,12 @@ public partial class MainPage : ContentPage
         ResultEditor.Text = "Loading admin usage...";
         try
         {
+            if (!_isAdminMode)
+            {
+                ResultEditor.Text = "Admin mode is locked. Unlock admin mode in Settings first.";
+                return;
+            }
+
             var adminKey = AdminKeyEntry.Text?.Trim() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(adminKey))
             {
@@ -336,6 +473,7 @@ public partial class MainPage : ContentPage
 
             var payload = await _gatewayClient.GetAdminUsageAsync(adminKey, limit, offset);
             ResultEditor.Text = System.Text.Json.JsonSerializer.Serialize(payload, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            SavePreferences();
         }
         catch (GatewayApiException error)
         {
