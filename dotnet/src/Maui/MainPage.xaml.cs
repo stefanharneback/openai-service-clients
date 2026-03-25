@@ -1,5 +1,6 @@
 using OpenAiServiceClients.Core;
 using OpenAiServiceClients.Core.Models;
+using Microsoft.Maui.Dispatching;
 using System.Text.Json;
 
 namespace OpenAiServiceClients.Maui;
@@ -17,6 +18,7 @@ public partial class MainPage : ContentPage
     private const string PreferenceKeyRememberAdminKey = "remember_admin_key";
 
     private readonly GatewayClient _gatewayClient;
+    private readonly IDispatcherTimer _adminAutoLockTimer;
     private bool _settingsVisible;
     private bool _isAdminMode;
 
@@ -25,6 +27,22 @@ public partial class MainPage : ContentPage
         InitializeComponent();
         var httpClient = new HttpClient { BaseAddress = new Uri(AppConstants.GatewayBaseUrl) };
         _gatewayClient = new GatewayClient(httpClient);
+
+        _adminAutoLockTimer = Dispatcher.CreateTimer();
+        _adminAutoLockTimer.Interval = TimeSpan.FromMinutes(15);
+        _adminAutoLockTimer.Tick += OnAdminAutoLockTick;
+    }
+
+    private void OnAdminAutoLockTick(object? sender, EventArgs eventArgs)
+    {
+        SetAdminMode(false, "Admin mode auto-locked after inactivity.");
+    }
+
+    private void ResetAdminAutoLockTimer()
+    {
+        _adminAutoLockTimer.Stop();
+        if (_isAdminMode)
+            _adminAutoLockTimer.Start();
     }
 
     protected override async void OnAppearing()
@@ -149,6 +167,11 @@ public partial class MainPage : ContentPage
         AdminPanel.IsVisible = enabled;
         AdminModeStatusLabel.Text = status;
         AdminModeStatusLabel.TextColor = enabled ? Colors.Green : Colors.Gray;
+
+        if (enabled)
+            ResetAdminAutoLockTimer();
+        else
+            _adminAutoLockTimer.Stop();
     }
 
     private void OnToggleSettingsClicked(object? sender, EventArgs eventArgs)
@@ -200,6 +223,35 @@ public partial class MainPage : ContentPage
     private void OnLockAdminClicked(object? sender, EventArgs eventArgs)
     {
         SetAdminMode(false, "Admin mode is locked.");
+    }
+
+    private async void OnClearStoredKeysClicked(object? sender, EventArgs eventArgs)
+    {
+        var confirmed = await DisplayAlert(
+            "Clear stored keys",
+            "This will remove stored client/admin keys from this device. Continue?",
+            "Clear",
+            "Cancel");
+
+        if (!confirmed)
+            return;
+
+        try
+        {
+            SecureStorage.Default.Remove(StorageKeyClientApiKey);
+            SecureStorage.Default.Remove(StorageKeyAdminApiKey);
+        }
+        catch
+        {
+            // Best effort cleanup.
+        }
+
+        ApiKeyEntry.Text = string.Empty;
+        AdminKeyEntry.Text = string.Empty;
+        RememberAdminKeyCheckBox.IsChecked = false;
+        Preferences.Default.Set(PreferenceKeyRememberAdminKey, false);
+        SetAdminMode(false, "Admin mode is locked.");
+        ResultEditor.Text = "Stored keys were cleared from this device.";
     }
 
     private async void OnHealthClicked(object? sender, EventArgs eventArgs)
@@ -474,6 +526,7 @@ public partial class MainPage : ContentPage
             var payload = await _gatewayClient.GetAdminUsageAsync(adminKey, limit, offset);
             ResultEditor.Text = System.Text.Json.JsonSerializer.Serialize(payload, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
             SavePreferences();
+            ResetAdminAutoLockTimer();
         }
         catch (GatewayApiException error)
         {

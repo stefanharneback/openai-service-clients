@@ -51,6 +51,9 @@
                     <Button Text="Lock admin mode" Clicked="OnLockAdminClicked" />
                 </HorizontalStackLayout>
                 <Label x:Name="AdminModeStatusLabel" Text="Admin mode is locked." TextColor="Gray" />
+                <Label Text="Admin mode auto-locks after 15 minutes of inactivity." TextColor="Gray" FontSize="12" />
+
+                <Button Text="Clear stored keys" Clicked="OnClearStoredKeysClicked" />
             </VerticalStackLayout>
 
             <VerticalStackLayout x:Name="AdminPanel" IsVisible="False" Spacing="8">
