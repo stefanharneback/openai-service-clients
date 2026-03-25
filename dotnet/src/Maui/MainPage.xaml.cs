@@ -18,9 +18,12 @@ public partial class MainPage : ContentPage
     private const string PreferenceKeyRememberAdminKey = "remember_admin_key";
     private const string PreferenceKeyAdminAutoLockMinutes = "admin_auto_lock_minutes";
     private const int DefaultAdminAutoLockMinutes = 15;
+    private static readonly int[] AdminAutoLockOptionsMinutes = [1, 2, 5, 10, 15, 30, 60, 120];
 
     private readonly GatewayClient _gatewayClient;
     private readonly IDispatcherTimer _adminAutoLockTimer;
+    private readonly IDispatcherTimer _adminCountdownTimer;
+    private DateTimeOffset? _adminAutoLockDeadlineUtc;
     private bool _settingsVisible;
     private bool _isAdminMode;
 
@@ -33,11 +36,20 @@ public partial class MainPage : ContentPage
         _adminAutoLockTimer = Dispatcher.CreateTimer();
         _adminAutoLockTimer.Interval = TimeSpan.FromMinutes(15);
         _adminAutoLockTimer.Tick += OnAdminAutoLockTick;
+
+        _adminCountdownTimer = Dispatcher.CreateTimer();
+        _adminCountdownTimer.Interval = TimeSpan.FromSeconds(1);
+        _adminCountdownTimer.Tick += OnAdminCountdownTick;
     }
 
     private void OnAdminAutoLockTick(object? sender, EventArgs eventArgs)
     {
         SetAdminMode(false, "Admin mode auto-locked after inactivity.");
+    }
+
+    private void OnAdminCountdownTick(object? sender, EventArgs eventArgs)
+    {
+        UpdateAdminCountdownLabel();
     }
 
     private void OnAppEnteredBackground(object? sender, EventArgs eventArgs)
@@ -64,16 +76,65 @@ public partial class MainPage : ContentPage
     private void ApplyAdminAutoLockConfig()
     {
         var minutes = GetConfiguredAdminAutoLockMinutes();
-        AdminAutoLockMinutesEntry.Text = minutes.ToString();
+        PopulateAdminAutoLockPicker(minutes);
         AdminAutoLockHintLabel.Text = $"Admin mode auto-locks after {minutes} minute(s) of inactivity.";
         _adminAutoLockTimer.Interval = TimeSpan.FromMinutes(minutes);
+        UpdateAdminCountdownLabel();
+    }
+
+    private void PopulateAdminAutoLockPicker(int selectedMinutes)
+    {
+        AdminAutoLockPicker.Items.Clear();
+        foreach (var option in AdminAutoLockOptionsMinutes)
+            AdminAutoLockPicker.Items.Add(option.ToString());
+
+        var target = SanitizeAdminAutoLockMinutes(selectedMinutes).ToString();
+        var index = AdminAutoLockPicker.Items.IndexOf(target);
+        if (index < 0)
+        {
+            AdminAutoLockPicker.Items.Add(target);
+            index = AdminAutoLockPicker.Items.Count - 1;
+        }
+
+        AdminAutoLockPicker.SelectedIndex = index;
+    }
+
+    private void UpdateAdminCountdownLabel()
+    {
+        if (!_isAdminMode || _adminAutoLockDeadlineUtc is null)
+        {
+            AdminCountdownLabel.IsVisible = false;
+            AdminCountdownLabel.Text = string.Empty;
+            return;
+        }
+
+        var remaining = _adminAutoLockDeadlineUtc.Value - DateTimeOffset.UtcNow;
+        if (remaining <= TimeSpan.Zero)
+        {
+            AdminCountdownLabel.IsVisible = true;
+            AdminCountdownLabel.Text = "Admin auto-locking...";
+            return;
+        }
+
+        var wholeSeconds = TimeSpan.FromSeconds(Math.Ceiling(remaining.TotalSeconds));
+        AdminCountdownLabel.IsVisible = true;
+        AdminCountdownLabel.Text = $"Auto-lock in {wholeSeconds:mm\\:ss}";
     }
 
     private void ResetAdminAutoLockTimer()
     {
         _adminAutoLockTimer.Stop();
+        _adminCountdownTimer.Stop();
+        _adminAutoLockDeadlineUtc = null;
+
         if (_isAdminMode)
+        {
+            _adminAutoLockDeadlineUtc = DateTimeOffset.UtcNow.Add(_adminAutoLockTimer.Interval);
             _adminAutoLockTimer.Start();
+            _adminCountdownTimer.Start();
+        }
+
+        UpdateAdminCountdownLabel();
     }
 
     protected override async void OnAppearing()
@@ -102,7 +163,6 @@ public partial class MainPage : ContentPage
         AdminLimitEntry.Text = Preferences.Default.Get(PreferenceKeyAdminLimit, "20");
         AdminOffsetEntry.Text = Preferences.Default.Get(PreferenceKeyAdminOffset, "0");
         RememberAdminKeyCheckBox.IsChecked = Preferences.Default.Get(PreferenceKeyRememberAdminKey, false);
-        AdminAutoLockMinutesEntry.Text = GetConfiguredAdminAutoLockMinutes().ToString();
     }
 
     private void SavePreferences()
@@ -213,7 +273,12 @@ public partial class MainPage : ContentPage
         if (enabled)
             ResetAdminAutoLockTimer();
         else
+        {
             _adminAutoLockTimer.Stop();
+            _adminCountdownTimer.Stop();
+            _adminAutoLockDeadlineUtc = null;
+            UpdateAdminCountdownLabel();
+        }
     }
 
     private void OnToggleSettingsClicked(object? sender, EventArgs eventArgs)
@@ -267,9 +332,10 @@ public partial class MainPage : ContentPage
         SetAdminMode(false, "Admin mode is locked.");
     }
 
-    private void OnSaveAdminTimeoutClicked(object? sender, EventArgs eventArgs)
+    private void OnAdminAutoLockPickerChanged(object? sender, EventArgs eventArgs)
     {
-        if (!int.TryParse(AdminAutoLockMinutesEntry.Text, out var minutes))
+        var selected = AdminAutoLockPicker.SelectedItem as string;
+        if (!int.TryParse(selected, out var minutes))
             minutes = DefaultAdminAutoLockMinutes;
 
         var sanitized = SanitizeAdminAutoLockMinutes(minutes);

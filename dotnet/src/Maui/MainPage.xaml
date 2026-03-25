@@ -53,9 +53,9 @@
                 </HorizontalStackLayout>
                 <Label x:Name="AdminModeStatusLabel" Text="Admin mode is locked." TextColor="Gray" />
                 <Label Text="Admin auto-lock timeout (minutes)" />
-                <Entry x:Name="AdminAutoLockMinutesEntry" Text="15" Keyboard="Numeric" />
-                <Button Text="Save admin timeout" Clicked="OnSaveAdminTimeoutClicked" />
+                <Picker x:Name="AdminAutoLockPicker" SelectedIndexChanged="OnAdminAutoLockPickerChanged" />
                 <Label x:Name="AdminAutoLockHintLabel" Text="Admin mode auto-locks after 15 minutes of inactivity." TextColor="Gray" FontSize="12" />
+                <Label x:Name="AdminCountdownLabel" Text="" TextColor="Gray" FontSize="12" IsVisible="False" />
 
                 <Button Text="Clear stored keys" Clicked="OnClearStoredKeysClicked" />
             </VerticalStackLayout>
