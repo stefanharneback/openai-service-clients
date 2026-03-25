@@ -25,6 +25,7 @@ All client surfaces should share one API contract and one core .NET client libra
 
 ## First-time setup
 
+0. Install .NET 10 SDK and verify with `dotnet --version`.
 1. Install web dependencies with `npm --prefix web install`.
 2. Restore the .NET solution with `dotnet restore OpenAiServiceClients.slnx`.
 3. Restore MAUI workloads with `dotnet workload restore` before building the MAUI app.

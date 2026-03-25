@@ -9,6 +9,7 @@
                    FontSize="28"
                    FontAttributes="Bold" />
             <Label Text="Default user view. Open Settings only when needed." />
+            <Label x:Name="AdminModeBadgeLabel" Text="Admin: Locked" TextColor="White" BackgroundColor="#6B7280" Padding="10,4" HorizontalOptions="Start" />
 
             <Label Text="Model" />
             <Picker x:Name="ModelPicker" Title="Loading models..." SelectedIndexChanged="OnModelSelectionChanged" />
@@ -51,7 +52,10 @@
                     <Button Text="Lock admin mode" Clicked="OnLockAdminClicked" />
                 </HorizontalStackLayout>
                 <Label x:Name="AdminModeStatusLabel" Text="Admin mode is locked." TextColor="Gray" />
-                <Label Text="Admin mode auto-locks after 15 minutes of inactivity." TextColor="Gray" FontSize="12" />
+                <Label Text="Admin auto-lock timeout (minutes)" />
+                <Entry x:Name="AdminAutoLockMinutesEntry" Text="15" Keyboard="Numeric" />
+                <Button Text="Save admin timeout" Clicked="OnSaveAdminTimeoutClicked" />
+                <Label x:Name="AdminAutoLockHintLabel" Text="Admin mode auto-locks after 15 minutes of inactivity." TextColor="Gray" FontSize="12" />
 
                 <Button Text="Clear stored keys" Clicked="OnClearStoredKeysClicked" />
             </VerticalStackLayout>

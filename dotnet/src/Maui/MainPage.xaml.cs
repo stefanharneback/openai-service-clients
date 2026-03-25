@@ -16,6 +16,8 @@ public partial class MainPage : ContentPage
     private const string PreferenceKeyAdminLimit = "admin_limit";
     private const string PreferenceKeyAdminOffset = "admin_offset";
     private const string PreferenceKeyRememberAdminKey = "remember_admin_key";
+    private const string PreferenceKeyAdminAutoLockMinutes = "admin_auto_lock_minutes";
+    private const int DefaultAdminAutoLockMinutes = 15;
 
     private readonly GatewayClient _gatewayClient;
     private readonly IDispatcherTimer _adminAutoLockTimer;
@@ -38,6 +40,35 @@ public partial class MainPage : ContentPage
         SetAdminMode(false, "Admin mode auto-locked after inactivity.");
     }
 
+    private void OnAppEnteredBackground(object? sender, EventArgs eventArgs)
+    {
+        if (_isAdminMode)
+        {
+            SetAdminMode(false, "Admin mode auto-locked because app was backgrounded.");
+        }
+    }
+
+    private static int SanitizeAdminAutoLockMinutes(int minutes)
+    {
+        if (minutes < 1) return 1;
+        if (minutes > 120) return 120;
+        return minutes;
+    }
+
+    private int GetConfiguredAdminAutoLockMinutes()
+    {
+        var configured = Preferences.Default.Get(PreferenceKeyAdminAutoLockMinutes, DefaultAdminAutoLockMinutes);
+        return SanitizeAdminAutoLockMinutes(configured);
+    }
+
+    private void ApplyAdminAutoLockConfig()
+    {
+        var minutes = GetConfiguredAdminAutoLockMinutes();
+        AdminAutoLockMinutesEntry.Text = minutes.ToString();
+        AdminAutoLockHintLabel.Text = $"Admin mode auto-locks after {minutes} minute(s) of inactivity.";
+        _adminAutoLockTimer.Interval = TimeSpan.FromMinutes(minutes);
+    }
+
     private void ResetAdminAutoLockTimer()
     {
         _adminAutoLockTimer.Stop();
@@ -49,10 +80,18 @@ public partial class MainPage : ContentPage
     {
         base.OnAppearing();
         LoadPreferences();
+        ApplyAdminAutoLockConfig();
+        App.EnteredBackground += OnAppEnteredBackground;
         await LoadStoredApiKeyAsync();
         await LoadStoredAdminKeyAsync();
         await LoadModelsAsync();
         SetAdminMode(false, "Admin mode is locked.");
+    }
+
+    protected override void OnDisappearing()
+    {
+        App.EnteredBackground -= OnAppEnteredBackground;
+        base.OnDisappearing();
     }
 
     private void LoadPreferences()
@@ -63,6 +102,7 @@ public partial class MainPage : ContentPage
         AdminLimitEntry.Text = Preferences.Default.Get(PreferenceKeyAdminLimit, "20");
         AdminOffsetEntry.Text = Preferences.Default.Get(PreferenceKeyAdminOffset, "0");
         RememberAdminKeyCheckBox.IsChecked = Preferences.Default.Get(PreferenceKeyRememberAdminKey, false);
+        AdminAutoLockMinutesEntry.Text = GetConfiguredAdminAutoLockMinutes().ToString();
     }
 
     private void SavePreferences()
@@ -167,6 +207,8 @@ public partial class MainPage : ContentPage
         AdminPanel.IsVisible = enabled;
         AdminModeStatusLabel.Text = status;
         AdminModeStatusLabel.TextColor = enabled ? Colors.Green : Colors.Gray;
+        AdminModeBadgeLabel.Text = enabled ? "Admin: Unlocked" : "Admin: Locked";
+        AdminModeBadgeLabel.BackgroundColor = enabled ? Color.FromArgb("#166534") : Color.FromArgb("#6B7280");
 
         if (enabled)
             ResetAdminAutoLockTimer();
@@ -225,9 +267,24 @@ public partial class MainPage : ContentPage
         SetAdminMode(false, "Admin mode is locked.");
     }
 
+    private void OnSaveAdminTimeoutClicked(object? sender, EventArgs eventArgs)
+    {
+        if (!int.TryParse(AdminAutoLockMinutesEntry.Text, out var minutes))
+            minutes = DefaultAdminAutoLockMinutes;
+
+        var sanitized = SanitizeAdminAutoLockMinutes(minutes);
+        Preferences.Default.Set(PreferenceKeyAdminAutoLockMinutes, sanitized);
+        ApplyAdminAutoLockConfig();
+
+        if (_isAdminMode)
+            ResetAdminAutoLockTimer();
+
+        ResultEditor.Text = $"Admin auto-lock timeout saved to {sanitized} minute(s).";
+    }
+
     private async void OnClearStoredKeysClicked(object? sender, EventArgs eventArgs)
     {
-        var confirmed = await DisplayAlert(
+        var confirmed = await DisplayAlertAsync(
             "Clear stored keys",
             "This will remove stored client/admin keys from this device. Continue?",
             "Clear",
@@ -351,9 +408,14 @@ public partial class MainPage : ContentPage
             using var reader = new StreamReader(stream);
 
             LlmUsageSummary? streamUsage = null;
-            while (!reader.EndOfStream)
+            while (true)
             {
                 var line = await reader.ReadLineAsync();
+                if (line is null)
+                {
+                    break;
+                }
+
                 if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data:"))
                 {
                     continue;
