@@ -155,6 +155,20 @@ public sealed class GatewayClient
         return payload;
     }
 
+    public async Task<ModelsResponse> GetModelsAsync(
+        string apiKey,
+        CancellationToken cancellationToken = default)
+    {
+        using var message = new HttpRequestMessage(HttpMethod.Get, "/v1/models");
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+        using var response = await _httpClient.SendAsync(message, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        var payload = await response.Content.ReadFromJsonAsync<ModelsResponse>(SerializerOptions, cancellationToken);
+        return payload ?? throw new InvalidOperationException("Models payload was empty.");
+    }
+
     private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         if (response.IsSuccessStatusCode)
