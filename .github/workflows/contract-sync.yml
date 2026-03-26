@@ -2,6 +2,11 @@ name: contract-sync
 
 on:
   workflow_dispatch:
+    inputs:
+      gateway_ref:
+        description: "Gateway repo ref to compare (owner/repo@branch)"
+        required: false
+        default: ""
   schedule:
     - cron: "0 6 * * 1"
   pull_request:
@@ -15,7 +20,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Verify OpenAPI file exists
         run: test -f openapi.yaml
-      - name: Show OpenAPI version line
-        run: grep -n "^openapi:" openapi.yaml
+
+      - name: Validate YAML structure
+        run: |
+          python3 -c "
+          import yaml, sys
+          with open('openapi.yaml') as f:
+              spec = yaml.safe_load(f)
+          assert spec.get('openapi', '').startswith('3.'), 'Missing or invalid openapi version'
+          assert 'info' in spec, 'Missing info section'
+          assert 'paths' in spec, 'Missing paths section'
+          print(f\"OpenAPI {spec['openapi']} — {spec['info'].get('title', '?')} v{spec['info'].get('version', '?')}\")
+          print(f\"Paths: {', '.join(sorted(spec['paths'].keys()))}\")
+          "
+
+      - name: Verify expected client paths
+        run: |
+          python3 -c "
+          import yaml, sys
+          with open('openapi.yaml') as f:
+              spec = yaml.safe_load(f)
+          paths = set(spec.get('paths', {}).keys())
+          expected = {'/health', '/v1/llm', '/v1/whisper', '/v1/usage', '/v1/admin/usage', '/v1/models', '/v1/admin/retention'}
+          missing = expected - paths
+          if missing:
+              print(f'ERROR: Missing expected paths: {sorted(missing)}', file=sys.stderr)
+              sys.exit(1)
+          extra = paths - expected
+          if extra:
+              print(f'Note: Additional paths not yet in all clients: {sorted(extra)}')
+          print(f'All {len(expected)} expected paths present.')
+          "

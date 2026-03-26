@@ -26,6 +26,8 @@ This repository is a multi-client workspace for the OpenAI gateway service.
 - Web install: `npm --prefix web install`
 - Web dev: `npm --prefix web run dev`
 - Web check: `npm --prefix web run check`
+- Web lint: `npm --prefix web run lint`
+- Web format check: `npm --prefix web run format`
 - Web test: `npm --prefix web test`
 - Dotnet restore: `dotnet restore OpenAiServiceClients.slnx`
 - Dotnet build core: `dotnet build dotnet/src/Core/OpenAiServiceClients.Core.csproj`
@@ -44,6 +46,8 @@ This repository is a multi-client workspace for the OpenAI gateway service.
 ## Done criteria
 
 - Relevant web and/or dotnet checks pass.
+- `npm --prefix web run lint` passes for web changes.
+- `npm --prefix web run format` passes for web changes.
 - Contract sync implications are handled.
 - Tests are updated for behavioral changes.
 - Docs, prompts, and agents are updated when workflow behavior changes.

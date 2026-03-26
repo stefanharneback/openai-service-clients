@@ -25,6 +25,10 @@ jobs:
         run: npm --prefix web ci
       - name: Type check
         run: npm --prefix web run check
+      - name: Lint
+        run: npm --prefix web run lint
+      - name: Format check
+        run: npm --prefix web run format
       - name: Build
         run: npm --prefix web run build
       - name: Test

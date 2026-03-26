@@ -33,16 +33,32 @@ All client surfaces should share one API contract and one core .NET client libra
 
 ## Current status
 
-- `web/` contains a working Vite + React + TypeScript app with `/health` and `/v1/llm` (non-stream + stream) support.
-- `dotnet/src/Core/` contains the shared .NET gateway client with JSON and SSE stream methods.
-- `dotnet/src/Web/` contains an ASP.NET Core app with `/api/health`, `/api/llm`, and `/api/llm/stream` routes plus a static UI.
-- `dotnet/src/Maui/` contains a MAUI app with health, non-stream LLM, and streaming LLM flows.
-- `dotnet/tests/Core.Tests/` contains shared client tests including streaming coverage.
+### Gateway endpoint coverage
+
+| Gateway endpoint       | web (TS) | .NET Core | .NET Web | MAUI |
+|------------------------|:--------:|:---------:|:--------:|:----:|
+| `/health`              | ✅       | ✅        | ✅       | ✅   |
+| `/v1/llm` (non-stream) | ✅      | ✅        | ✅       | ✅   |
+| `/v1/llm` (stream)    | ✅       | ✅        | ✅       | ✅   |
+| `/v1/whisper`          | ✅       | ✅        | ✅       | ✅   |
+| `/v1/usage`            | ✅       | ✅        | ✅       | —    |
+| `/v1/admin/usage`      | ✅       | ✅        | ✅       | —    |
+| `/v1/models`           | —        | ✅        | —        | ✅   |
+| `/v1/admin/retention`  | —        | —         | —        | —    |
+
+### Client details
+
+- **`web/`** — Vite + React + TypeScript SPA with Vitest unit tests. Covers health, LLM (non-stream + stream with SSE parsing), Whisper upload, usage, and admin usage.
+- **`dotnet/src/Core/`** — Shared .NET gateway client (`GatewayClient`) with JSON, SSE stream, multipart, and query-string methods. Includes `LlmPayloadHelper` for usage extraction and `ModelQueryPolicy` for model availability checks.
+- **`dotnet/src/Web/`** — ASP.NET Core minimal API with `/api/health`, `/api/llm`, `/api/llm/stream`, `/api/whisper`, `/api/usage`, and `/api/admin/usage` routes plus a static HTML UI.
+- **`dotnet/src/Maui/`** — .NET MAUI app with health, LLM (non-stream + stream), Whisper (audio file picker), server-driven model picker, usage stats display, and a Settings page for API keys, whisper model, pagination, and admin auto-lock.
+- **`dotnet/tests/Core.Tests/`** — xUnit tests for the shared .NET client layer including streaming and payload helper coverage.
 
 ## Validation commands
 
 - Web install: `npm --prefix web install`
 - Web check: `npm --prefix web run check`
+- Web test: `npm --prefix web test`
 - Web build: `npm --prefix web run build`
 - Dotnet restore: `dotnet restore OpenAiServiceClients.slnx`
 - Dotnet build (Core): `dotnet build dotnet/src/Core/OpenAiServiceClients.Core.csproj`

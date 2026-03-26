@@ -48,7 +48,7 @@ export const sendLlm = async (
 
 type StreamChunkHandler = (chunk: string) => void;
 
-const parseSseDataLine = (line: string): string | null => {
+export const parseSseDataLine = (line: string): string | null => {
   if (!line.startsWith("data:")) {
     return null;
   }
@@ -56,7 +56,7 @@ const parseSseDataLine = (line: string): string | null => {
   return line.slice(5).trim();
 };
 
-const extractDisplayChunk = (data: string): string => {
+export const extractDisplayChunk = (data: string): string => {
   if (data === "[DONE]") {
     return "\n\n[done]";
   }

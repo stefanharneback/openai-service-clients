@@ -158,11 +158,7 @@ function App() {
         <p>Starter web client for full-chain gateway testing.</p>
 
         <label htmlFor="base-url">Gateway base URL</label>
-        <input
-          id="base-url"
-          value={baseUrl}
-          onChange={(event) => setBaseUrl(event.target.value)}
-        />
+        <input id="base-url" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
 
         <button onClick={runHealthCheck} disabled={loading}>
           {loading ? "Checking..." : "Check /health"}
@@ -182,11 +178,7 @@ function App() {
         />
 
         <label htmlFor="model">Model</label>
-        <input
-          id="model"
-          value={model}
-          onChange={(event) => setModel(event.target.value)}
-        />
+        <input id="model" value={model} onChange={(event) => setModel(event.target.value)} />
 
         <label htmlFor="input">Input</label>
         <textarea
