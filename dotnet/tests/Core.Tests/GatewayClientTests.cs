@@ -9,6 +9,27 @@ namespace OpenAiServiceClients.Core.Tests;
 public sealed class GatewayClientTests
 {
     [Fact]
+    public void ModelQueryPolicy_ReturnsFalse_WhenApiKeyMissing()
+    {
+        var result = ModelQueryPolicy.CanRunModelQueries(string.Empty, ["gpt-5.4"]);
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void ModelQueryPolicy_ReturnsFalse_WhenModelsMissing()
+    {
+        var result = ModelQueryPolicy.CanRunModelQueries("client-secret", []);
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void ModelQueryPolicy_ReturnsTrue_WhenApiKeyAndModelsPresent()
+    {
+        var result = ModelQueryPolicy.CanRunModelQueries("client-secret", ["gpt-5.4-mini"]);
+        Assert.True(result);
+    }
+
+    [Fact]
     public async Task GetHealthAsync_ParsesExpectedPayload()
     {
         var json = """
@@ -322,6 +343,51 @@ public sealed class GatewayClientTests
 
         Assert.Equal(HttpStatusCode.Forbidden, error.StatusCode);
         Assert.Contains("forbidden", error.ResponseBody);
+    }
+
+    [Fact]
+    public async Task GetModelsAsync_ReturnsModelsList()
+    {
+        HttpRequestMessage? capturedRequest = null;
+        var responseJson = """
+        {
+          "models": ["gpt-5.4", "gpt-5.4-mini"]
+        }
+        """;
+
+        var client = CreateClient(request =>
+        {
+            capturedRequest = request;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson, Encoding.UTF8, "application/json"),
+            };
+        });
+
+        var result = await client.GetModelsAsync("client-secret");
+
+        Assert.NotNull(capturedRequest);
+        Assert.Equal("Bearer", capturedRequest!.Headers.Authorization?.Scheme);
+        Assert.Equal("client-secret", capturedRequest.Headers.Authorization?.Parameter);
+        Assert.Equal("/v1/models", capturedRequest.RequestUri?.AbsolutePath);
+        Assert.Equal(2, result.Models.Count);
+        Assert.Contains("gpt-5.4", result.Models);
+        Assert.Contains("gpt-5.4-mini", result.Models);
+    }
+
+    [Fact]
+    public async Task GetModelsAsync_ThrowsGatewayApiException_OnUnauthorized()
+    {
+        var client = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)
+        {
+            Content = new StringContent("{\"error\":{\"code\":\"invalid_auth\"}}", Encoding.UTF8, "application/json"),
+        });
+
+        var error = await Assert.ThrowsAsync<GatewayApiException>(
+            async () => await client.GetModelsAsync("bad-key"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, error.StatusCode);
+        Assert.Contains("invalid_auth", error.ResponseBody);
     }
 
     private static GatewayClient CreateClient(Func<HttpRequestMessage, HttpResponseMessage> responder)

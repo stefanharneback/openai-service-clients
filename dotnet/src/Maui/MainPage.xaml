@@ -8,8 +8,11 @@
             <Label Text="OpenAI Service Clients"
                    FontSize="28"
                    FontAttributes="Bold" />
-            <Label Text="Default user view. Open Settings only when needed." />
-            <Label x:Name="AdminModeBadgeLabel" Text="Admin: Locked" TextColor="White" BackgroundColor="#6B7280" Padding="10,4" HorizontalOptions="Start" />
+            <Label Text="Execution view. Configure API keys and defaults in Settings." />
+
+            <Button Text="Open Settings" Clicked="OnOpenSettingsClicked" />
+            <Button Text="Refresh models from server" Clicked="OnRefreshModelsClicked" />
+            <Label x:Name="ModelLoadStatusLabel" TextColor="Gray" FontSize="12" />
 
             <Label Text="Model" />
             <Picker x:Name="ModelPicker" Title="Loading models..." SelectedIndexChanged="OnModelSelectionChanged" />
@@ -18,59 +21,12 @@
             <Editor x:Name="InputEditor" HeightRequest="120" Text="Summarize the value of API gateways in three bullets." />
 
             <Button Text="Check /health" Clicked="OnHealthClicked" />
-            <Button Text="Send /v1/llm" Clicked="OnLlmClicked" />
-            <Button Text="Stream /v1/llm" Clicked="OnLlmStreamClicked" />
+            <Button x:Name="LlmButton" Text="Send /v1/llm" Clicked="OnLlmClicked" />
+            <Button x:Name="LlmStreamButton" Text="Stream /v1/llm" Clicked="OnLlmStreamClicked" />
             <Label x:Name="UsageStatsLabel" TextColor="Gray" FontSize="12" IsVisible="False" />
 
-            <Button x:Name="ToggleSettingsButton" Text="Show Settings" Clicked="OnToggleSettingsClicked" />
-
-            <VerticalStackLayout x:Name="SettingsPanel" IsVisible="False" Spacing="10">
-                <Label Text="Settings" FontAttributes="Bold" />
-
-                <Label Text="Client API key" />
-                <Entry x:Name="ApiKeyEntry" IsPassword="True" Placeholder="oais_test_..." />
-
-                <Label Text="Whisper model" />
-                <Entry x:Name="WhisperModelEntry" Text="whisper-1" />
-
-                <Label Text="Usage limit" />
-                <Entry x:Name="UsageLimitEntry" Text="20" Keyboard="Numeric" />
-                <Label Text="Usage offset" />
-                <Entry x:Name="UsageOffsetEntry" Text="0" Keyboard="Numeric" />
-                <Button Text="Get /v1/usage" Clicked="OnUsageClicked" />
-
-                <Button Text="Refresh models from server" Clicked="OnRefreshModelsClicked" />
-
-                <Label Text="Admin access" FontAttributes="Bold" Margin="0,8,0,0" />
-                <Entry x:Name="AdminKeyEntry" IsPassword="True" Placeholder="admin-secret..." />
-                <HorizontalStackLayout Spacing="8">
-                    <CheckBox x:Name="RememberAdminKeyCheckBox" />
-                    <Label VerticalTextAlignment="Center" Text="Remember admin key on this device" />
-                </HorizontalStackLayout>
-                <HorizontalStackLayout Spacing="8">
-                    <Button Text="Unlock admin mode" Clicked="OnUnlockAdminClicked" />
-                    <Button Text="Lock admin mode" Clicked="OnLockAdminClicked" />
-                </HorizontalStackLayout>
-                <Label x:Name="AdminModeStatusLabel" Text="Admin mode is locked." TextColor="Gray" />
-                <Label Text="Admin auto-lock timeout (minutes)" />
-                <Picker x:Name="AdminAutoLockPicker" SelectedIndexChanged="OnAdminAutoLockPickerChanged" />
-                <Label x:Name="AdminAutoLockHintLabel" Text="Admin mode auto-locks after 15 minutes of inactivity." TextColor="Gray" FontSize="12" />
-                <Label x:Name="AdminCountdownLabel" Text="" TextColor="Gray" FontSize="12" IsVisible="False" />
-
-                <Button Text="Clear stored keys" Clicked="OnClearStoredKeysClicked" />
-            </VerticalStackLayout>
-
-            <VerticalStackLayout x:Name="AdminPanel" IsVisible="False" Spacing="8">
-                <Label Text="Admin Usage" FontSize="20" FontAttributes="Bold" Margin="0,12,0,0" />
-                <Label Text="Limit" />
-                <Entry x:Name="AdminLimitEntry" Text="20" Keyboard="Numeric" />
-                <Label Text="Offset" />
-                <Entry x:Name="AdminOffsetEntry" Text="0" Keyboard="Numeric" />
-                <Button Text="Get /v1/admin/usage" Clicked="OnAdminUsageClicked" />
-            </VerticalStackLayout>
-
             <Label Text="Whisper" FontSize="20" FontAttributes="Bold" Margin="0,12,0,0" />
-            <Button Text="Pick Audio &amp; Transcribe /v1/whisper" Clicked="OnWhisperClicked" />
+            <Button x:Name="WhisperButton" Text="Pick Audio &amp; Transcribe /v1/whisper" Clicked="OnWhisperClicked" />
 
             <Label Text="Result" FontAttributes="Bold" />
             <Editor x:Name="ResultEditor" AutoSize="TextChanges" IsReadOnly="True" HeightRequest="220" />

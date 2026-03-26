@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="OpenAiServiceClients.Maui.SettingsPage"
+             Title="Settings">
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="12">
+            <Label Text="Settings" FontSize="26" FontAttributes="Bold" />
+            <Label Text="These values are persisted for future runs." TextColor="Gray" FontSize="12" />
+
+            <Label Text="Client API key" />
+            <Entry x:Name="ApiKeyEntry" IsPassword="True" Placeholder="oais_test_..." />
+
+            <Label Text="Whisper model" />
+            <Picker x:Name="WhisperModelPicker" />
+
+            <Label Text="Usage limit" />
+            <Entry x:Name="UsageLimitEntry" Text="20" Keyboard="Numeric" />
+            <Label Text="Usage offset" />
+            <Entry x:Name="UsageOffsetEntry" Text="0" Keyboard="Numeric" />
+
+            <Label Text="Admin key" />
+            <Entry x:Name="AdminKeyEntry" IsPassword="True" Placeholder="admin-secret..." />
+            <HorizontalStackLayout Spacing="8">
+                <CheckBox x:Name="RememberAdminKeyCheckBox" />
+                <Label VerticalTextAlignment="Center" Text="Remember admin key on this device" />
+            </HorizontalStackLayout>
+
+            <Label Text="Admin usage limit" />
+            <Entry x:Name="AdminLimitEntry" Text="20" Keyboard="Numeric" />
+            <Label Text="Admin usage offset" />
+            <Entry x:Name="AdminOffsetEntry" Text="0" Keyboard="Numeric" />
+
+            <Label Text="Admin auto-lock timeout (minutes)" />
+            <Picker x:Name="AdminAutoLockPicker" />
+
+            <HorizontalStackLayout Spacing="8">
+                <Button Text="Save" Clicked="OnSaveClicked" />
+                <Button Text="Cancel" Clicked="OnCancelClicked" />
+            </HorizontalStackLayout>
+
+            <Button Text="Clear stored keys" Clicked="OnClearStoredKeysClicked" />
+            <Label x:Name="StatusLabel" TextColor="Gray" FontSize="12" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
