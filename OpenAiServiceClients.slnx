@@ -14,4 +14,7 @@
   <Folder Name="/dotnet/tests/Core.Tests/">
     <Project Path="dotnet/tests/Core.Tests/OpenAiServiceClients.Core.Tests.csproj" />
   </Folder>
+  <Folder Name="/dotnet/tests/Ui.Tests/">
+    <Project Path="dotnet/tests/Ui.Tests/OpenAiServiceClients.Ui.Tests.csproj" />
+  </Folder>
 </Solution>

@@ -10,26 +10,26 @@
                    FontAttributes="Bold" />
             <Label Text="Execution view. Configure API keys and defaults in Settings." />
 
-            <Button Text="Open Settings" Clicked="OnOpenSettingsClicked" />
-            <Button Text="Refresh models from server" Clicked="OnRefreshModelsClicked" />
-            <Label x:Name="ModelLoadStatusLabel" TextColor="Gray" FontSize="12" />
+            <Button AutomationId="OpenSettingsButton" Text="Open Settings" Clicked="OnOpenSettingsClicked" />
+            <Button AutomationId="RefreshModelsButton" Text="Refresh models from server" Clicked="OnRefreshModelsClicked" />
+            <Label x:Name="ModelLoadStatusLabel" AutomationId="ModelLoadStatusLabel" TextColor="Gray" FontSize="12" />
 
             <Label Text="Model" />
-            <Picker x:Name="ModelPicker" Title="Loading models..." SelectedIndexChanged="OnModelSelectionChanged" />
+            <Picker x:Name="ModelPicker" AutomationId="ModelPicker" Title="Loading models..." SelectedIndexChanged="OnModelSelectionChanged" />
 
             <Label Text="Input" />
-            <Editor x:Name="InputEditor" HeightRequest="120" Text="Summarize the value of API gateways in three bullets." />
+            <Editor x:Name="InputEditor" AutomationId="InputEditor" HeightRequest="120" Text="Summarize the value of API gateways in three bullets." />
 
-            <Button Text="Check /health" Clicked="OnHealthClicked" />
-            <Button x:Name="LlmButton" Text="Send /v1/llm" Clicked="OnLlmClicked" />
-            <Button x:Name="LlmStreamButton" Text="Stream /v1/llm" Clicked="OnLlmStreamClicked" />
-            <Label x:Name="UsageStatsLabel" TextColor="Gray" FontSize="12" IsVisible="False" />
+            <Button AutomationId="HealthButton" Text="Check /health" Clicked="OnHealthClicked" />
+            <Button x:Name="LlmButton" AutomationId="LlmButton" Text="Send /v1/llm" Clicked="OnLlmClicked" />
+            <Button x:Name="LlmStreamButton" AutomationId="LlmStreamButton" Text="Stream /v1/llm" Clicked="OnLlmStreamClicked" />
+            <Label x:Name="UsageStatsLabel" AutomationId="UsageStatsLabel" TextColor="Gray" FontSize="12" IsVisible="False" />
 
             <Label Text="Whisper" FontSize="20" FontAttributes="Bold" Margin="0,12,0,0" />
-            <Button x:Name="WhisperButton" Text="Pick Audio &amp; Transcribe /v1/whisper" Clicked="OnWhisperClicked" />
+            <Button x:Name="WhisperButton" AutomationId="WhisperButton" Text="Pick Audio &amp; Transcribe /v1/whisper" Clicked="OnWhisperClicked" />
 
             <Label Text="Result" FontAttributes="Bold" />
-            <Editor x:Name="ResultEditor" AutoSize="TextChanges" IsReadOnly="True" HeightRequest="220" />
+            <Editor x:Name="ResultEditor" AutomationId="ResultEditor" AutoSize="TextChanges" IsReadOnly="True" HeightRequest="220" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

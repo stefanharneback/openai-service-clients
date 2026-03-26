@@ -9,38 +9,38 @@
             <Label Text="These values are persisted for future runs." TextColor="Gray" FontSize="12" />
 
             <Label Text="Client API key" />
-            <Entry x:Name="ApiKeyEntry" IsPassword="True" Placeholder="oais_test_..." />
+            <Entry x:Name="ApiKeyEntry" AutomationId="SettingsApiKeyEntry" IsPassword="True" Placeholder="oais_test_..." />
 
             <Label Text="Whisper model" />
-            <Picker x:Name="WhisperModelPicker" />
+            <Picker x:Name="WhisperModelPicker" AutomationId="SettingsWhisperModelPicker" />
 
             <Label Text="Usage limit" />
-            <Entry x:Name="UsageLimitEntry" Text="20" Keyboard="Numeric" />
+            <Entry x:Name="UsageLimitEntry" AutomationId="SettingsUsageLimitEntry" Text="20" Keyboard="Numeric" />
             <Label Text="Usage offset" />
-            <Entry x:Name="UsageOffsetEntry" Text="0" Keyboard="Numeric" />
+            <Entry x:Name="UsageOffsetEntry" AutomationId="SettingsUsageOffsetEntry" Text="0" Keyboard="Numeric" />
 
             <Label Text="Admin key" />
-            <Entry x:Name="AdminKeyEntry" IsPassword="True" Placeholder="admin-secret..." />
+            <Entry x:Name="AdminKeyEntry" AutomationId="SettingsAdminKeyEntry" IsPassword="True" Placeholder="admin-secret..." />
             <HorizontalStackLayout Spacing="8">
-                <CheckBox x:Name="RememberAdminKeyCheckBox" />
+                <CheckBox x:Name="RememberAdminKeyCheckBox" AutomationId="SettingsRememberAdminKeyCheckBox" />
                 <Label VerticalTextAlignment="Center" Text="Remember admin key on this device" />
             </HorizontalStackLayout>
 
             <Label Text="Admin usage limit" />
-            <Entry x:Name="AdminLimitEntry" Text="20" Keyboard="Numeric" />
+            <Entry x:Name="AdminLimitEntry" AutomationId="SettingsAdminLimitEntry" Text="20" Keyboard="Numeric" />
             <Label Text="Admin usage offset" />
-            <Entry x:Name="AdminOffsetEntry" Text="0" Keyboard="Numeric" />
+            <Entry x:Name="AdminOffsetEntry" AutomationId="SettingsAdminOffsetEntry" Text="0" Keyboard="Numeric" />
 
             <Label Text="Admin auto-lock timeout (minutes)" />
-            <Picker x:Name="AdminAutoLockPicker" />
+            <Picker x:Name="AdminAutoLockPicker" AutomationId="SettingsAdminAutoLockPicker" />
 
             <HorizontalStackLayout Spacing="8">
-                <Button Text="Save" Clicked="OnSaveClicked" />
-                <Button Text="Cancel" Clicked="OnCancelClicked" />
+                <Button AutomationId="SettingsSaveButton" Text="Save" Clicked="OnSaveClicked" />
+                <Button AutomationId="SettingsCancelButton" Text="Cancel" Clicked="OnCancelClicked" />
             </HorizontalStackLayout>
 
-            <Button Text="Clear stored keys" Clicked="OnClearStoredKeysClicked" />
-            <Label x:Name="StatusLabel" TextColor="Gray" FontSize="12" />
+            <Button AutomationId="SettingsClearStoredKeysButton" Text="Clear stored keys" Clicked="OnClearStoredKeysClicked" />
+            <Label x:Name="StatusLabel" AutomationId="SettingsStatusLabel" TextColor="Gray" FontSize="12" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>
