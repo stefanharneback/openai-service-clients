@@ -13,14 +13,15 @@ public partial class MainPage : ContentPage
     private readonly GatewayClient _gatewayClient;
     private string _clientApiKey = string.Empty;
     private string _whisperModel = "whisper-1";
-    private bool _canRunModelQueries;
+    private bool _canRunTextQueries;
+    private bool _canRunWhisper;
 
     public MainPage()
     {
         InitializeComponent();
         var httpClient = new HttpClient { BaseAddress = new Uri(AppConstants.GatewayBaseUrl) };
         _gatewayClient = new GatewayClient(httpClient);
-        SetModelQueryAvailability(false, "Open Settings and set your client API key to load models.");
+        SetInteractionAvailability(false, false, false, "Open Settings and set your client API key to load models.");
     }
 
     protected override async void OnAppearing()
@@ -55,30 +56,49 @@ public partial class MainPage : ContentPage
 
         if (string.IsNullOrWhiteSpace(_clientApiKey))
         {
-            SetModelQueryAvailability(false, "Client API key is required. Open Settings and save a key.");
+            SetInteractionAvailability(false, false, false, "Client API key is required. Open Settings and save a key.");
             return;
         }
 
         try
         {
             var response = await _gatewayClient.GetModelsAsync(_clientApiKey);
-            if (!ModelQueryPolicy.CanRunModelQueries(_clientApiKey, response.Models))
+            var textModels = FilterTextModels(response.Models);
+            if (!ModelQueryPolicy.CanRunModelQueries(_clientApiKey, textModels))
             {
-                SetModelQueryAvailability(false, "Model catalog is empty. Update server allowlist and refresh models.");
+                var status = response.Unrestricted
+                    ? "No text models were advertised. Refresh the catalog or update the gateway defaults. Whisper remains available."
+                    : "No text models are available. Update the server allowlist and refresh models. Whisper remains available.";
+                SetInteractionAvailability(false, true, false, status);
                 return;
             }
 
-            PopulateModelPicker(response.Models);
-            SetModelQueryAvailability(true, $"Loaded {response.Models.Count} model(s) from server.");
+            PopulateModelPicker(textModels);
+            var loadedStatus = response.Unrestricted
+                ? $"Loaded {textModels.Count} starter model(s); gateway allowlist is unrestricted."
+                : $"Loaded {textModels.Count} text model(s) from server.";
+            SetInteractionAvailability(true, true, true, loadedStatus);
         }
         catch (GatewayApiException error)
         {
-            SetModelQueryAvailability(false, $"Unable to load models: {error.Message}");
+            SetInteractionAvailability(false, true, false, $"Unable to load models: {error.Message}. Whisper remains available.");
         }
         catch
         {
-            SetModelQueryAvailability(false, "Unable to load models from server.");
+            SetInteractionAvailability(false, true, false, "Unable to load models from server. Whisper remains available.");
         }
+    }
+
+    private static IReadOnlyList<string> FilterTextModels(IReadOnlyList<string> models)
+    {
+        return models
+            .Where(static model => !string.IsNullOrWhiteSpace(model))
+            .Where(static model =>
+                !string.Equals(model, "whisper-1", StringComparison.OrdinalIgnoreCase)
+                && model.IndexOf("transcribe", StringComparison.OrdinalIgnoreCase) < 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static model => model, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private void PopulateModelPicker(IReadOnlyList<string> models)
@@ -96,22 +116,32 @@ public partial class MainPage : ContentPage
         ModelPicker.SelectedIndex = preferredIndex >= 0 ? preferredIndex : 0;
     }
 
-    private void SetModelQueryAvailability(bool enabled, string status)
+    private void SetInteractionAvailability(bool canRunTextQueries, bool canRunWhisper, bool canSelectModel, string status)
     {
-        _canRunModelQueries = enabled;
-        LlmButton.IsEnabled = enabled;
-        LlmStreamButton.IsEnabled = enabled;
-        WhisperButton.IsEnabled = enabled;
-        ModelPicker.IsEnabled = enabled;
+        _canRunTextQueries = canRunTextQueries;
+        _canRunWhisper = canRunWhisper;
+        LlmButton.IsEnabled = canRunTextQueries;
+        LlmStreamButton.IsEnabled = canRunTextQueries;
+        WhisperButton.IsEnabled = canRunWhisper;
+        ModelPicker.IsEnabled = canSelectModel;
         ModelLoadStatusLabel.Text = status;
     }
 
-    private bool EnsureModelQueriesReady()
+    private bool EnsureTextQueriesReady()
     {
-        if (_canRunModelQueries)
+        if (_canRunTextQueries)
             return true;
 
         ResultEditor.Text = "Model queries are disabled. Open Settings, save a valid API key, and refresh models from server.";
+        return false;
+    }
+
+    private bool EnsureWhisperReady()
+    {
+        if (_canRunWhisper)
+            return true;
+
+        ResultEditor.Text = "Whisper is disabled. Open Settings, save a valid API key, and refresh models.";
         return false;
     }
 
@@ -148,7 +178,7 @@ public partial class MainPage : ContentPage
 
     private async void OnLlmClicked(object? sender, EventArgs e)
     {
-        if (!EnsureModelQueriesReady())
+        if (!EnsureTextQueriesReady())
             return;
 
         ResultEditor.Text = "Loading llm response...";
@@ -188,7 +218,7 @@ public partial class MainPage : ContentPage
 
     private async void OnLlmStreamClicked(object? sender, EventArgs e)
     {
-        if (!EnsureModelQueriesReady())
+        if (!EnsureTextQueriesReady())
             return;
 
         ResultEditor.Text = "Streaming output:\n\n";
@@ -255,7 +285,7 @@ public partial class MainPage : ContentPage
 
     private async void OnWhisperClicked(object? sender, EventArgs e)
     {
-        if (!EnsureModelQueriesReady())
+        if (!EnsureWhisperReady())
             return;
 
         ResultEditor.Text = "Picking audio file...";
@@ -309,10 +339,48 @@ public partial class MainPage : ContentPage
             if (root.TryGetProperty("delta", out var delta) && delta.ValueKind == JsonValueKind.String)
                 return delta.GetString() ?? string.Empty;
 
-            if (root.TryGetProperty("type", out var type)
-                && type.ValueKind == JsonValueKind.String
-                && type.GetString() == "response.completed")
+            if (root.TryGetProperty("type", out var eventType)
+                && eventType.ValueKind == JsonValueKind.String
+                && eventType.GetString() == "response.output_item.done"
+                && root.TryGetProperty("item", out var item))
+            {
+                return ExtractOutputItemText(item);
+            }
+
+            if (root.TryGetProperty("type", out var completionType)
+                && completionType.ValueKind == JsonValueKind.String
+                && completionType.GetString() == "response.completed")
                 return "\n\n[completed]";
+
+            if (root.TryGetProperty("type", out var failedType)
+                && failedType.ValueKind == JsonValueKind.String
+                && failedType.GetString() == "response.failed")
+            {
+                var errorCode = root.TryGetProperty("error", out var error)
+                    && error.TryGetProperty("code", out var code)
+                    && code.ValueKind == JsonValueKind.String
+                        ? code.GetString()
+                        : "unknown_error";
+                var errorMessage = root.TryGetProperty("error", out error)
+                    && error.TryGetProperty("message", out var message)
+                    && message.ValueKind == JsonValueKind.String
+                        ? message.GetString()
+                        : "Streaming response failed.";
+                return $"\n\n[failed: {errorCode}] {errorMessage}";
+            }
+
+            if (root.TryGetProperty("type", out var incompleteType)
+                && incompleteType.ValueKind == JsonValueKind.String
+                && incompleteType.GetString() == "response.incomplete")
+            {
+                var reason = root.TryGetProperty("response", out var response)
+                    && response.TryGetProperty("status_details", out var statusDetails)
+                    && statusDetails.TryGetProperty("reason", out var reasonValue)
+                    && reasonValue.ValueKind == JsonValueKind.String
+                        ? reasonValue.GetString()
+                        : "unknown";
+                return $"\n\n[incomplete: {reason}]";
+            }
 
             return string.Empty;
         }
@@ -320,6 +388,32 @@ public partial class MainPage : ContentPage
         {
             return $"{data}{Environment.NewLine}";
         }
+    }
+
+    private static string ExtractOutputItemText(JsonElement item)
+    {
+        if (!item.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array)
+            return string.Empty;
+
+        var chunks = new List<string>();
+        foreach (var contentItem in content.EnumerateArray())
+        {
+            if (!contentItem.TryGetProperty("type", out var type)
+                || type.ValueKind != JsonValueKind.String
+                || type.GetString() != "output_text")
+            {
+                continue;
+            }
+
+            if (contentItem.TryGetProperty("text", out var text) && text.ValueKind == JsonValueKind.String)
+            {
+                var value = text.GetString();
+                if (!string.IsNullOrWhiteSpace(value))
+                    chunks.Add(value.Trim());
+            }
+        }
+
+        return string.Join(Environment.NewLine, chunks);
     }
 
     private void ShowUsage(LlmUsageSummary? usage)

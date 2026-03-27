@@ -62,6 +62,35 @@ describe("extractDisplayChunk", () => {
     expect(extractDisplayChunk(payload)).toBe("\n\n[completed]");
   });
 
+  it("extracts text from response.output_item.done events", () => {
+    const payload = JSON.stringify({
+      type: "response.output_item.done",
+      item: {
+        content: [
+          { type: "output_text", text: "Part 1" },
+          { type: "output_text", text: "Part 2" },
+        ],
+      },
+    });
+    expect(extractDisplayChunk(payload)).toBe("Part 1\nPart 2");
+  });
+
+  it("returns a readable failure marker for response.failed", () => {
+    const payload = JSON.stringify({
+      type: "response.failed",
+      error: { code: "content_filter", message: "Filtered." },
+    });
+    expect(extractDisplayChunk(payload)).toBe("\n\n[failed: content_filter] Filtered.");
+  });
+
+  it("returns a readable incomplete marker for response.incomplete", () => {
+    const payload = JSON.stringify({
+      type: "response.incomplete",
+      response: { status_details: { reason: "max_output_tokens" } },
+    });
+    expect(extractDisplayChunk(payload)).toBe("\n\n[incomplete: max_output_tokens]");
+  });
+
   it("returns empty string for JSON without delta or completed", () => {
     const payload = JSON.stringify({ type: "response.created" });
     expect(extractDisplayChunk(payload)).toBe("");
@@ -205,7 +234,10 @@ describe("postWhisper", () => {
     expect(result).toEqual(body);
     const [url, init] = mockFetch.mock.calls[0];
     expect(url).toBe("http://localhost:3000/v1/whisper");
-    expect((init as RequestInit).body).toBeInstanceOf(FormData);
+    const formData = (init as RequestInit).body as FormData;
+    expect(formData).toBeInstanceOf(FormData);
+    expect(formData.get("apiKey")).toBeNull();
+    expect(formData.get("model")).toBe("gpt-4o-transcribe");
   });
 
   it("throws on failure", async () => {

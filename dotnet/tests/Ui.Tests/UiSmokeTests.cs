@@ -1,41 +1,39 @@
 using OpenQA.Selenium;
 using OpenQA.Selenium.Appium;
 using OpenQA.Selenium.Appium.Windows;
+using Xunit.Sdk;
 
 namespace OpenAiServiceClients.Ui.Tests;
 
 public sealed class UiSmokeTests : IDisposable
 {
     private readonly WindowsDriver? _driver;
+    private readonly string? _skipReason;
 
     public UiSmokeTests()
     {
-        _driver = TryCreateDriver();
+        (_driver, _skipReason) = TryCreateDriver();
     }
 
     [Fact]
     public void CanLaunchAppAndOpenSettingsScreen()
     {
-        if (_driver is null)
-            return;
-
-        var openSettingsButton = _driver.FindElement(MobileBy.AccessibilityId("OpenSettingsButton"));
+        var driver = RequireDriver();
+        var openSettingsButton = driver.FindElement(MobileBy.AccessibilityId("OpenSettingsButton"));
         openSettingsButton.Click();
 
-        _driver.FindElement(MobileBy.AccessibilityId("SettingsApiKeyEntry"));
-        _driver.FindElement(MobileBy.AccessibilityId("SettingsSaveButton"));
+        driver.FindElement(MobileBy.AccessibilityId("SettingsApiKeyEntry"));
+        driver.FindElement(MobileBy.AccessibilityId("SettingsSaveButton"));
     }
 
     [Fact]
     public void QueryButtonsAreDiscoverableForGatingAssertions()
     {
-        if (_driver is null)
-            return;
-
-        _driver.FindElement(MobileBy.AccessibilityId("LlmButton"));
-        _driver.FindElement(MobileBy.AccessibilityId("LlmStreamButton"));
-        _driver.FindElement(MobileBy.AccessibilityId("WhisperButton"));
-        _driver.FindElement(MobileBy.AccessibilityId("ModelLoadStatusLabel"));
+        var driver = RequireDriver();
+        driver.FindElement(MobileBy.AccessibilityId("LlmButton"));
+        driver.FindElement(MobileBy.AccessibilityId("LlmStreamButton"));
+        driver.FindElement(MobileBy.AccessibilityId("WhisperButton"));
+        driver.FindElement(MobileBy.AccessibilityId("ModelLoadStatusLabel"));
     }
 
     public void Dispose()
@@ -44,11 +42,16 @@ public sealed class UiSmokeTests : IDisposable
         _driver?.Dispose();
     }
 
-    private static WindowsDriver? TryCreateDriver()
+    private WindowsDriver RequireDriver()
+    {
+        return _driver ?? throw new XunitException(_skipReason ?? "Appium driver was unavailable.");
+    }
+
+    private static (WindowsDriver? Driver, string? SkipReason) TryCreateDriver()
     {
         var appExe = Environment.GetEnvironmentVariable("MAUI_APP_EXE");
         if (string.IsNullOrWhiteSpace(appExe) || !File.Exists(appExe))
-            return null;
+            return (null, "Set MAUI_APP_EXE to a built app path before running UI smoke tests.");
 
         var appiumServer = Environment.GetEnvironmentVariable("APPIUM_SERVER_URL");
         var appiumUri = string.IsNullOrWhiteSpace(appiumServer)
@@ -65,11 +68,11 @@ public sealed class UiSmokeTests : IDisposable
 
             var driver = new WindowsDriver(appiumUri, options, TimeSpan.FromSeconds(30));
             driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(5);
-            return driver;
+            return (driver, null);
         }
-        catch
+        catch (Exception error)
         {
-            return null;
+            return (null, $"Unable to start Appium or launch the MAUI app: {error.Message}");
         }
     }
 }

@@ -351,7 +351,8 @@ public sealed class GatewayClientTests
         HttpRequestMessage? capturedRequest = null;
         var responseJson = """
         {
-          "models": ["gpt-5.4", "gpt-5.4-mini"]
+          "models": ["gpt-5.4", "gpt-5.4-mini"],
+          "unrestricted": true
         }
         """;
 
@@ -373,6 +374,7 @@ public sealed class GatewayClientTests
         Assert.Equal(2, result.Models.Count);
         Assert.Contains("gpt-5.4", result.Models);
         Assert.Contains("gpt-5.4-mini", result.Models);
+        Assert.True(result.Unrestricted);
     }
 
     [Fact]

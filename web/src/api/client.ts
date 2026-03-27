@@ -56,19 +56,68 @@ export const parseSseDataLine = (line: string): string | null => {
   return line.slice(5).trim();
 };
 
+type ResponseEventPayload = {
+  type?: string;
+  delta?: string;
+  item?: {
+    content?: Array<{
+      type?: string;
+      text?: string;
+    }>;
+  };
+  error?: {
+    code?: string;
+    message?: string;
+  };
+  response?: {
+    status_details?: {
+      reason?: string;
+    };
+  };
+};
+
+const extractOutputItemText = (payload: ResponseEventPayload): string => {
+  const content = payload.item?.content;
+  if (!Array.isArray(content)) {
+    return "";
+  }
+
+  const text = content
+    .filter((item) => item?.type === "output_text" && typeof item.text === "string")
+    .map((item) => item.text?.trim() ?? "")
+    .filter((item) => item.length > 0);
+
+  return text.join("\n");
+};
+
 export const extractDisplayChunk = (data: string): string => {
   if (data === "[DONE]") {
     return "\n\n[done]";
   }
 
   try {
-    const payload = JSON.parse(data) as { type?: string; delta?: string };
+    const payload = JSON.parse(data) as ResponseEventPayload;
     if (typeof payload.delta === "string") {
       return payload.delta;
     }
 
+    if (payload.type === "response.output_item.done") {
+      return extractOutputItemText(payload);
+    }
+
     if (payload.type === "response.completed") {
       return "\n\n[completed]";
+    }
+
+    if (payload.type === "response.failed") {
+      const errorCode = payload.error?.code ?? "unknown_error";
+      const errorMessage = payload.error?.message ?? "Streaming response failed.";
+      return `\n\n[failed: ${errorCode}] ${errorMessage}`;
+    }
+
+    if (payload.type === "response.incomplete") {
+      const reason = payload.response?.status_details?.reason ?? "unknown";
+      return `\n\n[incomplete: ${reason}]`;
     }
 
     return "";
@@ -150,7 +199,6 @@ export const postWhisper = async (
   file: File,
 ): Promise<unknown> => {
   const formData = new FormData();
-  formData.append("apiKey", apiKey);
   formData.append("model", model);
   formData.append("file", file, file.name);
 

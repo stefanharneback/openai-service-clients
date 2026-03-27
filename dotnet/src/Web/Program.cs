@@ -16,6 +16,12 @@ var app = builder.Build();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+static string GetHeaderOrValue(HttpContext context, string headerName, string? fallbackValue = null)
+{
+	var headerValue = context.Request.Headers[headerName].ToString();
+	return string.IsNullOrWhiteSpace(headerValue) ? fallbackValue ?? string.Empty : headerValue;
+}
+
 app.MapGet("/api/health", async (GatewayClient gatewayClient, CancellationToken cancellationToken) =>
 {
 	var payload = await gatewayClient.GetHealthAsync(cancellationToken);
@@ -103,7 +109,7 @@ app.MapPost("/api/llm/stream", async (HttpContext context, GatewayClient gateway
 app.MapPost("/api/whisper", async (HttpContext context, GatewayClient gatewayClient, CancellationToken cancellationToken) =>
 {
 	var form = await context.Request.ReadFormAsync(cancellationToken);
-	var apiKey = form["apiKey"].ToString();
+	var apiKey = GetHeaderOrValue(context, "x-api-key", form["apiKey"].ToString());
 	var model = form["model"].ToString();
 	var file = form.Files.GetFile("file");
 
@@ -143,8 +149,9 @@ app.MapPost("/api/whisper", async (HttpContext context, GatewayClient gatewayCli
 	}
 });
 
-app.MapGet("/api/usage", async (GatewayClient gatewayClient, string? apiKey, int limit = 20, int offset = 0, CancellationToken cancellationToken = default) =>
+app.MapGet("/api/usage", async (HttpContext context, GatewayClient gatewayClient, int limit = 20, int offset = 0, CancellationToken cancellationToken = default) =>
 {
+	var apiKey = GetHeaderOrValue(context, "x-api-key", context.Request.Query["apiKey"].ToString());
 	if (string.IsNullOrWhiteSpace(apiKey))
 	{
 		return Results.BadRequest(new { error = "apiKey is required." });
@@ -164,8 +171,9 @@ app.MapGet("/api/usage", async (GatewayClient gatewayClient, string? apiKey, int
 	}
 });
 
-app.MapGet("/api/admin/usage", async (GatewayClient gatewayClient, string? adminKey, int limit = 20, int offset = 0, CancellationToken cancellationToken = default) =>
+app.MapGet("/api/admin/usage", async (HttpContext context, GatewayClient gatewayClient, int limit = 20, int offset = 0, CancellationToken cancellationToken = default) =>
 {
+	var adminKey = GetHeaderOrValue(context, "x-admin-key", context.Request.Query["adminKey"].ToString());
 	if (string.IsNullOrWhiteSpace(adminKey))
 	{
 		return Results.BadRequest(new { error = "adminKey is required." });
