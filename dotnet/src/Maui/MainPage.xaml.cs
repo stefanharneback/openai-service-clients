@@ -16,11 +16,10 @@ public partial class MainPage : ContentPage
     private bool _canRunTextQueries;
     private bool _canRunWhisper;
 
-    public MainPage()
+    public MainPage(GatewayClient gatewayClient)
     {
         InitializeComponent();
-        var httpClient = new HttpClient { BaseAddress = new Uri(AppConstants.GatewayBaseUrl) };
-        _gatewayClient = new GatewayClient(httpClient);
+        _gatewayClient = gatewayClient;
         SetInteractionAvailability(false, false, false, "Open Settings and set your client API key to load models.");
     }
 

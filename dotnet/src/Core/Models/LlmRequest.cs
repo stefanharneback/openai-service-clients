@@ -12,4 +12,7 @@ public sealed record LlmRequest
 
     [JsonPropertyName("stream")]
     public bool Stream { get; init; } = false;
+
+    [JsonExtensionData]
+    public Dictionary<string, object?>? AdditionalProperties { get; set; }
 }

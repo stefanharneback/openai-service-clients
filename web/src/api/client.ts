@@ -9,6 +9,7 @@ export type LlmRequest = {
   model: string;
   input: string;
   stream?: boolean;
+  [key: string]: unknown;
 };
 
 export const getHealth = async (baseUrl: string): Promise<HealthResponse> => {
@@ -18,6 +19,24 @@ export const getHealth = async (baseUrl: string): Promise<HealthResponse> => {
   }
 
   return (await response.json()) as HealthResponse;
+};
+
+export type ModelsResponse = {
+  models: string[];
+  unrestricted: boolean;
+};
+
+export const getModels = async (baseUrl: string, apiKey: string): Promise<ModelsResponse> => {
+  const response = await fetch(`${baseUrl}/v1/models`, {
+    headers: { authorization: `Bearer ${apiKey}` },
+  });
+
+  const responseText = await response.text();
+  if (!response.ok) {
+    throw new Error(`Models request failed (${response.status}): ${responseText}`);
+  }
+
+  return JSON.parse(responseText) as ModelsResponse;
 };
 
 export const sendLlm = async (

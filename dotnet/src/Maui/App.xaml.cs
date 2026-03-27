@@ -17,6 +17,8 @@ public partial class App : Application
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        return new Window(new NavigationPage(new MainPage()));
+        var mainPage = Handler?.MauiContext?.Services.GetRequiredService<MainPage>()
+            ?? throw new InvalidOperationException("Unable to resolve MainPage from DI.");
+        return new Window(new NavigationPage(mainPage));
     }
 }

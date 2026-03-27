@@ -173,7 +173,6 @@
         llmResult.textContent = "Loading...";
 
         const payload = {
-          apiKey: document.getElementById("apiKey").value,
           model: document.getElementById("model").value,
           input: document.getElementById("input").value,
         };
@@ -181,7 +180,7 @@
         try {
           const response = await fetch("/api/llm", {
             method: "POST",
-            headers: { "content-type": "application/json" },
+            headers: { "content-type": "application/json", authorization: `Bearer ${document.getElementById("apiKey").value}` },
             body: JSON.stringify(payload),
           });
 
@@ -196,7 +195,6 @@
         llmResult.textContent = "Streaming output:\n\n";
 
         const payload = {
-          apiKey: document.getElementById("apiKey").value,
           model: document.getElementById("model").value,
           input: document.getElementById("input").value,
         };
@@ -204,7 +202,7 @@
         try {
           const response = await fetch("/api/llm/stream", {
             method: "POST",
-            headers: { "content-type": "application/json", accept: "text/event-stream" },
+            headers: { "content-type": "application/json", accept: "text/event-stream", authorization: `Bearer ${document.getElementById("apiKey").value}` },
             body: JSON.stringify(payload),
           });
 
@@ -264,7 +262,7 @@
         try {
           const response = await fetch("/api/whisper", {
             method: "POST",
-            headers: { "x-api-key": document.getElementById("whisperApiKey").value },
+            headers: { authorization: `Bearer ${document.getElementById("whisperApiKey").value}` },
             body: formData,
           });
 
@@ -281,7 +279,7 @@
         const offset = document.getElementById("usageOffset").value;
         try {
           const response = await fetch(`/api/usage?limit=${limit}&offset=${offset}`, {
-            headers: { "x-api-key": apiKey },
+            headers: { authorization: `Bearer ${apiKey}` },
           });
           const payload = await response.json();
           usageResult.textContent = JSON.stringify(payload, null, 2);
@@ -297,7 +295,7 @@
         const offset = document.getElementById("adminOffset").value;
         try {
           const response = await fetch(`/api/admin/usage?limit=${limit}&offset=${offset}`, {
-            headers: { "x-admin-key": adminKey },
+            headers: { authorization: `Bearer ${adminKey}` },
           });
           const payload = await response.json();
           adminUsageResult.textContent = JSON.stringify(payload, null, 2);

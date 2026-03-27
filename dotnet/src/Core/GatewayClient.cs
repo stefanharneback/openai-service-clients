@@ -113,6 +113,10 @@ public sealed class GatewayClient
         int offset = 0,
         CancellationToken cancellationToken = default)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(limit, 100);
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+
         using var message = new HttpRequestMessage(
             HttpMethod.Get,
             $"/v1/usage?limit={limit}&offset={offset}");
@@ -137,6 +141,10 @@ public sealed class GatewayClient
         int offset = 0,
         CancellationToken cancellationToken = default)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(limit, 100);
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+
         using var message = new HttpRequestMessage(
             HttpMethod.Get,
             $"/v1/admin/usage?limit={limit}&offset={offset}");

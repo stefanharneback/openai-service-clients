@@ -16,10 +16,19 @@ var app = builder.Build();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-static string GetHeaderOrValue(HttpContext context, string headerName, string? fallbackValue = null)
+static string GetBearerToken(HttpContext context)
 {
-	var headerValue = context.Request.Headers[headerName].ToString();
-	return string.IsNullOrWhiteSpace(headerValue) ? fallbackValue ?? string.Empty : headerValue;
+	var header = context.Request.Headers.Authorization.ToString();
+	if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+	{
+		var token = header["Bearer ".Length..].Trim();
+		if (!string.IsNullOrWhiteSpace(token))
+		{
+			return token;
+		}
+	}
+
+	return string.Empty;
 }
 
 app.MapGet("/api/health", async (GatewayClient gatewayClient, CancellationToken cancellationToken) =>
@@ -28,11 +37,12 @@ app.MapGet("/api/health", async (GatewayClient gatewayClient, CancellationToken 
 	return Results.Ok(payload);
 });
 
-app.MapPost("/api/llm", async (GatewayClient gatewayClient, LlmPromptInput input, CancellationToken cancellationToken) =>
+app.MapPost("/api/llm", async (HttpContext context, GatewayClient gatewayClient, LlmPromptInput input, CancellationToken cancellationToken) =>
 {
-	if (string.IsNullOrWhiteSpace(input.ApiKey))
+	var apiKey = GetBearerToken(context);
+	if (string.IsNullOrWhiteSpace(apiKey))
 	{
-		return Results.BadRequest(new { error = "apiKey is required." });
+		return Results.Problem(title: "Unauthorized", detail: "Expected a Bearer token.", statusCode: 401);
 	}
 
 	if (string.IsNullOrWhiteSpace(input.Model) || string.IsNullOrWhiteSpace(input.Input))
@@ -49,7 +59,7 @@ app.MapPost("/api/llm", async (GatewayClient gatewayClient, LlmPromptInput input
 				Input = input.Input,
 				Stream = false,
 			},
-			input.ApiKey,
+			apiKey,
 			cancellationToken);
 
 		return Results.Text(payload.RootElement.GetRawText(), "application/json");
@@ -65,9 +75,10 @@ app.MapPost("/api/llm", async (GatewayClient gatewayClient, LlmPromptInput input
 
 app.MapPost("/api/llm/stream", async (HttpContext context, GatewayClient gatewayClient, LlmPromptInput input, CancellationToken cancellationToken) =>
 {
-	if (string.IsNullOrWhiteSpace(input.ApiKey))
+	var apiKey = GetBearerToken(context);
+	if (string.IsNullOrWhiteSpace(apiKey))
 	{
-		return Results.BadRequest(new { error = "apiKey is required." });
+		return Results.Problem(title: "Unauthorized", detail: "Expected a Bearer token.", statusCode: 401);
 	}
 
 	if (string.IsNullOrWhiteSpace(input.Model) || string.IsNullOrWhiteSpace(input.Input))
@@ -84,7 +95,7 @@ app.MapPost("/api/llm/stream", async (HttpContext context, GatewayClient gateway
 				Input = input.Input,
 				Stream = true,
 			},
-			input.ApiKey,
+			apiKey,
 			cancellationToken);
 
 		context.Response.StatusCode = StatusCodes.Status200OK;
@@ -109,13 +120,13 @@ app.MapPost("/api/llm/stream", async (HttpContext context, GatewayClient gateway
 app.MapPost("/api/whisper", async (HttpContext context, GatewayClient gatewayClient, CancellationToken cancellationToken) =>
 {
 	var form = await context.Request.ReadFormAsync(cancellationToken);
-	var apiKey = GetHeaderOrValue(context, "x-api-key", form["apiKey"].ToString());
+	var apiKey = GetBearerToken(context);
 	var model = form["model"].ToString();
 	var file = form.Files.GetFile("file");
 
 	if (string.IsNullOrWhiteSpace(apiKey))
 	{
-		return Results.BadRequest(new { error = "apiKey is required." });
+		return Results.Problem(title: "Unauthorized", detail: "Expected a Bearer token.", statusCode: 401);
 	}
 
 	if (string.IsNullOrWhiteSpace(model))
@@ -151,10 +162,10 @@ app.MapPost("/api/whisper", async (HttpContext context, GatewayClient gatewayCli
 
 app.MapGet("/api/usage", async (HttpContext context, GatewayClient gatewayClient, int limit = 20, int offset = 0, CancellationToken cancellationToken = default) =>
 {
-	var apiKey = GetHeaderOrValue(context, "x-api-key", context.Request.Query["apiKey"].ToString());
+	var apiKey = GetBearerToken(context);
 	if (string.IsNullOrWhiteSpace(apiKey))
 	{
-		return Results.BadRequest(new { error = "apiKey is required." });
+		return Results.Problem(title: "Unauthorized", detail: "Expected a Bearer token.", statusCode: 401);
 	}
 
 	try
@@ -173,10 +184,10 @@ app.MapGet("/api/usage", async (HttpContext context, GatewayClient gatewayClient
 
 app.MapGet("/api/admin/usage", async (HttpContext context, GatewayClient gatewayClient, int limit = 20, int offset = 0, CancellationToken cancellationToken = default) =>
 {
-	var adminKey = GetHeaderOrValue(context, "x-admin-key", context.Request.Query["adminKey"].ToString());
+	var adminKey = GetBearerToken(context);
 	if (string.IsNullOrWhiteSpace(adminKey))
 	{
-		return Results.BadRequest(new { error = "adminKey is required." });
+		return Results.Problem(title: "Unauthorized", detail: "Expected a Bearer token.", statusCode: 401);
 	}
 
 	try
@@ -195,4 +206,4 @@ app.MapGet("/api/admin/usage", async (HttpContext context, GatewayClient gateway
 
 app.Run();
 
-internal sealed record LlmPromptInput(string ApiKey, string Model, string Input);
+internal sealed record LlmPromptInput(string Model, string Input);
