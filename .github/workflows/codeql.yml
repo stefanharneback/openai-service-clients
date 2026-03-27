@@ -55,7 +55,9 @@ jobs:
           queries: security-extended,security-and-quality
 
       - name: Restore
-        run: dotnet restore OpenAiServiceClients.slnx
+        run: |
+          dotnet restore dotnet/src/Core/OpenAiServiceClients.Core.csproj
+          dotnet restore dotnet/src/Web/OpenAiServiceClients.Web.csproj
 
       - name: Build non-MAUI projects
         run: |
